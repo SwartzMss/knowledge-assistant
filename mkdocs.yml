@@ -1,12 +1,21 @@
 repo_name: SwartzMss/knowledge-assistant
 repo_url: https://github.com/SwartzMss/knowledge-assistant
-site_name: Knowledge Assistant Docs
+site_name: Knowledge Assistant 开发文档
 edit_uri: edit/main/docs/
 
 nav:
-  - Home: index.md
-  - About: about.md
-  - Architecture: architecture/current-architecture.md
+  - 首页: index.md
+  - 关于: about.md
+  - 架构:
+      - 当前架构: architecture/current-architecture.md
+      - 目标架构: architecture/target-architecture.md
+  - 开发者指南:
+      - 总览: development/index.md
+      - 代码库地图: development/codebase-map.md
+      - 运行时流程: development/runtime-flows.md
+      - 数据与配置: development/data-and-configuration.md
+      - 质量与风险: development/quality-and-risks.md
+      - 实施路线图: development/roadmap.md
 
 theme:
   name: material
