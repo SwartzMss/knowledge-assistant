@@ -1,9 +1,6 @@
 import html
 import re
 
-from ktem.utils.commands import WEB_SEARCH_COMMAND
-
-
 def _normalize_mention(raw_mention: str) -> str:
     mention = raw_mention.strip()
     if mention.startswith('"') and mention.endswith('"'):
@@ -11,8 +8,8 @@ def _normalize_mention(raw_mention: str) -> str:
     return mention
 
 
-# Quoted names, @WebSearch, or unquoted tokens (e.g. @pic**1.jpeg).
-_MENTION_PATTERN = rf"(?:(?<=\s)|^)@(?:\"[^\"]+\"|{WEB_SEARCH_COMMAND}|[^\s@]+)"
+# Quoted names or unquoted file tokens (e.g. @pic**1.jpeg).
+_MENTION_PATTERN = r'(?:(?<=\s)|^)@(?:"[^"]+"|[^\s@]+)'
 
 _DISPLAY_MENTION_HTML_PATTERN = r"<strong>@([\s\S]*?)</strong>"
 
@@ -31,7 +28,6 @@ def prepare_llm_query(
     """Derive the LLM question from a chat bubble display string."""
     text = strip_display_mentions(display_text)
     _, text = get_mentions_regex(text)
-    _, text = get_urls(text)
     if not text and has_selected_files:
         return default_question
     return text
@@ -70,7 +66,7 @@ def sync_retrieval_n_message(
 
 
 def get_mentions_regex(input_str: str) -> tuple[list[str], str]:
-    # get mentions with pattern @"filename", @WebSearch, or @filename
+    # get mentions with pattern @"filename" or @filename
     # also remove these file names from input_str
     matches_raw = re.findall(_MENTION_PATTERN, input_str)
     matches = []
@@ -80,16 +76,6 @@ def get_mentions_regex(input_str: str) -> tuple[list[str], str]:
             matches.append(mention)
 
     input_str = re.sub(_MENTION_PATTERN, "", input_str).strip()
-
-    return matches, input_str
-
-
-def get_urls(input_str: str) -> tuple[list[str], str]:
-    # get all urls in input_str
-    # also remove these urls from input_str
-    pattern = r"https?://[^\s]+"
-    matches = re.findall(pattern, input_str)
-    input_str = re.sub(pattern, "", input_str).strip()
 
     return matches, input_str
 

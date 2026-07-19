@@ -14,7 +14,6 @@ from ktem.reasoning.prompt_optimization.mindmap import MINDMAP_HTML_EXPORT_TEMPL
 from plotly.io import from_json
 from sqlmodel import Session, select
 from theflow.settings import settings as flowsettings
-from theflow.utils.modules import import_dotted_string
 
 from kotaemon.base import Document
 from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
@@ -23,76 +22,22 @@ from ...utils import (
     SUPPORTED_LANGUAGE_MAP,
     format_mentions_for_display,
     get_mentions_regex,
-    get_urls,
     prepare_llm_query,
 )
-from ...utils.commands import WEB_SEARCH_COMMAND
 from .chat_panel import ChatPanel
 from .common import STATE
 from .control import ConversationControl
 from .report import ReportIssue
 
-KH_DEMO_MODE = False
-KH_SSO_ENABLED = False
-KH_WEB_SEARCH_BACKEND = getattr(flowsettings, "KH_WEB_SEARCH_BACKEND", None)
-WebSearch = None
-if KH_WEB_SEARCH_BACKEND:
-    try:
-        WebSearch = import_dotted_string(KH_WEB_SEARCH_BACKEND, safe=False)
-    except (ImportError, AttributeError) as e:
-        print(f"Error importing {KH_WEB_SEARCH_BACKEND}: {e}")
-
-REASONING_LIMITS = 2 if KH_DEMO_MODE else 10
+REASONING_LIMITS = 10
 DEFAULT_SETTING = "(default)"
 INFO_PANEL_SCALES = {True: 8, False: 4}
-DEFAULT_QUESTION = (
-    "What is the summary of this document?"
-    if not KH_DEMO_MODE
-    else "What is the summary of this paper?"
-)
+DEFAULT_QUESTION = "What is the summary of this document?"
 
 chat_input_focus_js = """
 function() {
     let chatInput = document.querySelector("#chat-input textarea");
     chatInput.focus();
-}
-"""
-
-quick_urls_submit_js = """
-function() {
-    let urlInput = document.querySelector("#quick-url-demo textarea");
-    console.log("URL input:", urlInput);
-    urlInput.dispatchEvent(new KeyboardEvent('keypress', {'key': 'Enter'}));
-}
-"""
-
-recommended_papers_js = """
-function() {
-    // Get all links and attach click event
-    var links = document.querySelectorAll("#related-papers a");
-
-    function submitPaper(event) {
-        event.preventDefault();
-        var target = event.currentTarget;
-        var url = target.getAttribute("href");
-        console.log("URL:", url);
-
-        let newChatButton = document.querySelector("#new-conv-button");
-        newChatButton.click();
-
-        setTimeout(() => {
-            let urlInput = document.querySelector("#quick-url-demo textarea");
-            // Fill the URL input
-            urlInput.value = url;
-            urlInput.dispatchEvent(new Event("input", { bubbles: true }));
-            urlInput.dispatchEvent(new KeyboardEvent('keypress', {'key': 'Enter'}));
-            }, 500
-        );
-    }
-
-    for (var i = 0; i < links.length; i++) {
-        links[i].onclick = submitPaper;
-    }
 }
 """
 
@@ -182,14 +127,6 @@ function() {
     MINDMAP_HTML_EXPORT_TEMPLATE.replace("\n", "").replace('"', '\\"'),
 )
 
-fetch_api_key_js = """
-function(_, __) {
-    api_key = getStorage('google_api_key', '');
-    console.log('session API key:', api_key);
-    return [api_key, _];
-}
-"""
-
 
 class ChatPage(BasePage):
     def __init__(self, app):
@@ -202,8 +139,6 @@ class ChatPage(BasePage):
         self._reasoning_type = gr.State(value=None)
         self._conversation_renamed = gr.State(value=False)
         self._info_panel_expanded = gr.State(value=True)
-        self._command_state = gr.State(value=None)
-        self._user_api_key = gr.Text(value="", visible=False)
 
     def on_building_ui(self):
         with gr.Row():
@@ -227,9 +162,6 @@ class ChatPage(BasePage):
                     is_first_index = index_id == 0
                     index_name = index.name
 
-                    if KH_DEMO_MODE and is_first_index:
-                        index_name = "Select from Paper Collection"
-
                     with gr.Accordion(
                         label=index_name,
                         open=is_first_index,
@@ -241,7 +173,6 @@ class ChatPage(BasePage):
                         # get the file selector choices for the first index
                         if index_id == 0:
                             self.first_selector_choices = index_ui.selector_choices
-                            self.first_indexing_url_fn = None
 
                         if gr_index:
                             if isinstance(gr_index, list):
@@ -260,59 +191,30 @@ class ChatPage(BasePage):
                         setattr(self, f"_index_{index.id}", index_ui)
 
                 if len(self._app.index_manager.indices) > 0:
-                    quick_upload_label = (
-                        "Quick Upload" if not KH_DEMO_MODE else "Or input new paper URL"
-                    )
-
-                    with gr.Accordion(label=quick_upload_label) as _:
+                    with gr.Accordion(label="Quick Upload") as _:
                         self.quick_file_upload_status = gr.Markdown()
-                        if not KH_DEMO_MODE:
-                            self.quick_file_upload = File(
-                                file_types=list(KH_DEFAULT_FILE_EXTRACTORS.keys()),
-                                file_count="multiple",
-                                container=True,
-                                show_label=False,
-                                elem_id="quick-file",
-                            )
-                        self.quick_urls = gr.Textbox(
-                            placeholder=(
-                                "Or paste URLs"
-                                if not KH_DEMO_MODE
-                                else "Paste Arxiv URLs\n(https://arxiv.org/abs/xxx)"
-                            ),
-                            lines=1,
-                            container=False,
+                        self.quick_file_upload = File(
+                            file_types=list(KH_DEFAULT_FILE_EXTRACTORS.keys()),
+                            file_count="multiple",
+                            container=True,
                             show_label=False,
-                            elem_id=(
-                                "quick-url" if not KH_DEMO_MODE else "quick-url-demo"
-                            ),
+                            elem_id="quick-file",
                         )
 
-                if not KH_DEMO_MODE:
-                    self.report_issue = ReportIssue(self._app)
-                else:
-                    with gr.Accordion(label="Related papers", open=False):
-                        self.related_papers = gr.Markdown(elem_id="related-papers")
-
-                    self.hint_page = HintPage(self._app)
+                self.report_issue = ReportIssue(self._app)
 
             with gr.Column(scale=6, elem_id="chat-area"):
-                if KH_DEMO_MODE:
-                    self.paper_list = PaperListPage(self._app)
-
                 self.chat_panel = ChatPanel(self._app)
 
                 with gr.Accordion(
                     label="Chat settings",
                     elem_id="chat-settings-expand",
                     open=False,
-                    visible=not KH_DEMO_MODE,
+                    visible=True,
                 ) as self.chat_settings:
                     with gr.Row(elem_id="quick-setting-labels"):
                         gr.HTML("Reasoning method")
-                        gr.HTML(
-                            "Model", visible=not KH_DEMO_MODE and not KH_SSO_ENABLED
-                        )
+                        gr.HTML("Model")
                         gr.HTML("Language")
 
                     with gr.Row():
@@ -340,7 +242,7 @@ class ChatPage(BasePage):
                             value=model_setting.value,
                             container=False,
                             show_label=False,
-                            visible=not KH_DEMO_MODE and not KH_SSO_ENABLED,
+                            visible=True,
                         )
                         self.language = gr.Dropdown(
                             choices=language_setting.choices,
@@ -394,19 +296,6 @@ class ChatPage(BasePage):
         return plot
 
     def on_register_events(self):
-        # first index paper recommendation
-        if KH_DEMO_MODE and len(self._indices_input) > 0:
-            self._indices_input[1].change(
-                self.get_recommendations,
-                inputs=[self.first_selector_choices, self._indices_input[1]],
-                outputs=[self.related_papers],
-            ).then(
-                fn=None,
-                inputs=None,
-                outputs=None,
-                js=recommended_papers_js,
-            )
-
         chat_event = (
             gr.on(
                 triggers=[
@@ -431,7 +320,6 @@ class ChatPage(BasePage):
                     # file selector from the first index
                     self._indices_input[0],
                     self._indices_input[1],
-                    self._command_state,
                 ],
                 concurrency_limit=20,
                 show_progress="hidden",
@@ -448,7 +336,6 @@ class ChatPage(BasePage):
                     self.citation,
                     self.language,
                     self.state_chat,
-                    self._command_state,
                     self._app.user_id,
                 ]
                 + self._indices_input,
@@ -471,26 +358,25 @@ class ChatPage(BasePage):
         )
 
         # final data persist
-        if not KH_DEMO_MODE:
-            chat_event = chat_event.then(
-                fn=self.persist_data_source,
-                inputs=[
-                    self.chat_control.conversation_id,
-                    self._app.user_id,
-                    self.info_panel,
-                    self.state_plot_panel,
-                    self.state_retrieval_history,
-                    self.state_plot_history,
-                    self.chat_panel.chatbot,
-                    self.state_chat,
-                ]
-                + self._indices_input,
-                outputs=[
-                    self.state_retrieval_history,
-                    self.state_plot_history,
-                ],
-                concurrency_limit=20,
-            )
+        chat_event = chat_event.then(
+            fn=self.persist_data_source,
+            inputs=[
+                self.chat_control.conversation_id,
+                self._app.user_id,
+                self.info_panel,
+                self.state_plot_panel,
+                self.state_retrieval_history,
+                self.state_plot_history,
+                self.chat_panel.chatbot,
+                self.state_chat,
+            ]
+            + self._indices_input,
+            outputs=[
+                self.state_retrieval_history,
+                self.state_plot_history,
+            ],
+            concurrency_limit=20,
+        )
 
         self.chat_control.btn_info_expand.click(
             fn=lambda is_expanded: (
@@ -504,36 +390,7 @@ class ChatPage(BasePage):
             fn=None, inputs=None, js="function() {toggleChatColumn();}"
         )
 
-        if KH_DEMO_MODE:
-            self.chat_control.btn_demo_logout.click(
-                fn=None,
-                js=self.chat_control.logout_js,
-            )
-            self.chat_control.btn_new.click(
-                fn=lambda: self.chat_control.select_conv("", None),
-                outputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation,
-                    self.chat_control.conversation_rn,
-                    self.chat_panel.chatbot,
-                    self.info_panel,
-                    self.state_plot_panel,
-                    self.state_retrieval_history,
-                    self.state_plot_history,
-                    self.chat_control.cb_is_public,
-                    self.state_chat,
-                ]
-                + self._indices_input,
-            ).then(
-                lambda: (gr.update(visible=False), gr.update(visible=True)),
-                outputs=[self.paper_list.accordion, self.chat_settings],
-            ).then(
-                fn=None,
-                inputs=None,
-                js=chat_input_focus_js,
-            )
-
-        if not KH_DEMO_MODE:
+        if True:
             self.chat_control.btn_new.click(
                 self.chat_control.new_conv,
                 inputs=self._app.user_id,
@@ -675,12 +532,6 @@ class ChatPage(BasePage):
             )
         )
 
-        if KH_DEMO_MODE:
-            onConvSelect = onConvSelect.then(
-                lambda: (gr.update(visible=False), gr.update(visible=True)),
-                outputs=[self.paper_list.accordion, self.chat_settings],
-            )
-
         onConvSelect = (
             onConvSelect.then(
                 fn=lambda: True,
@@ -695,28 +546,27 @@ class ChatPage(BasePage):
             .then(fn=None, inputs=None, outputs=None, js=chat_input_focus_js)
         )
 
-        if not KH_DEMO_MODE:
-            # evidence display on message selection
-            self.chat_panel.chatbot.select(
-                self.message_selected,
-                inputs=[
-                    self.state_retrieval_history,
-                    self.state_plot_history,
-                ],
-                outputs=[
-                    self.info_panel,
-                    self.state_plot_panel,
-                ],
-            ).then(
-                fn=self._json_to_plot,
-                inputs=self.state_plot_panel,
-                outputs=self.plot_panel,
-            ).then(
-                fn=lambda: True,
-                inputs=None,
-                outputs=[self._preview_links],
-                js=pdfview_js,
-            )
+        # evidence display on message selection
+        self.chat_panel.chatbot.select(
+            self.message_selected,
+            inputs=[
+                self.state_retrieval_history,
+                self.state_plot_history,
+            ],
+            outputs=[
+                self.info_panel,
+                self.state_plot_panel,
+            ],
+        ).then(
+            fn=self._json_to_plot,
+            inputs=self.state_plot_panel,
+            outputs=self.plot_panel,
+        ).then(
+            fn=lambda: True,
+            inputs=None,
+            outputs=[self._preview_links],
+            js=pdfview_js,
+        )
 
         self.chat_control.cb_is_public.change(
             self.on_set_public_conversation,
@@ -725,29 +575,28 @@ class ChatPage(BasePage):
             show_progress="hidden",
         )
 
-        if not KH_DEMO_MODE:
-            # user feedback events
-            self.chat_panel.chatbot.like(
-                fn=self.is_liked,
-                inputs=[self.chat_control.conversation_id],
-                outputs=None,
-            )
-            self.report_issue.report_btn.click(
-                self.report_issue.report,
-                inputs=[
-                    self.report_issue.correctness,
-                    self.report_issue.issues,
-                    self.report_issue.more_detail,
-                    self.chat_control.conversation_id,
-                    self.chat_panel.chatbot,
-                    self._app.settings_state,
-                    self._app.user_id,
-                    self.info_panel,
-                    self.state_chat,
-                ]
-                + self._indices_input,
-                outputs=None,
-            )
+        # user feedback events
+        self.chat_panel.chatbot.like(
+            fn=self.is_liked,
+            inputs=[self.chat_control.conversation_id],
+            outputs=None,
+        )
+        self.report_issue.report_btn.click(
+            self.report_issue.report,
+            inputs=[
+                self.report_issue.correctness,
+                self.report_issue.issues,
+                self.report_issue.more_detail,
+                self.chat_control.conversation_id,
+                self.chat_panel.chatbot,
+                self._app.settings_state,
+                self._app.user_id,
+                self.info_panel,
+                self.state_chat,
+            ]
+            + self._indices_input,
+            outputs=None,
+        )
 
         self.reasoning_type.change(
             self.reasoning_changed,
@@ -766,22 +615,6 @@ class ChatPage(BasePage):
             outputs=self.plot_panel,
         )
 
-        if KH_DEMO_MODE:
-            self.paper_list.examples.select(
-                self.paper_list.select_example,
-                inputs=[self.paper_list.papers_state],
-                outputs=[self.quick_urls],
-                show_progress="hidden",
-            ).then(
-                lambda: (gr.update(visible=False), gr.update(visible=True)),
-                outputs=[self.paper_list.accordion, self.chat_settings],
-            ).then(
-                fn=None,
-                inputs=None,
-                outputs=None,
-                js=quick_urls_submit_js,
-            )
-
     def submit_msg(
         self,
         chat_input,
@@ -794,17 +627,12 @@ class ChatPage(BasePage):
         request: gr.Request,
     ):
         """Submit a message to the chatbot"""
-        if KH_DEMO_MODE:
-            sso_user_id = check_rate_limit("chat", request)
-            print("User ID:", sso_user_id)
-
         if not chat_input:
             raise ValueError("Input is empty")
 
         chat_input_text = chat_input.get("text", "")
         display_chat_input_text = format_mentions_for_display(chat_input_text)
         file_ids = []
-        used_command = None
 
         first_selector_choices_map = {
             item[0]: item[1] for item in first_selector_choices
@@ -813,14 +641,8 @@ class ChatPage(BasePage):
         # get all file names with pattern @"filename" in input_str
         mentions, chat_input_text = get_mentions_regex(chat_input_text)
 
-        # check if web search command is in file_names
-        if WEB_SEARCH_COMMAND in mentions:
-            used_command = WEB_SEARCH_COMMAND
-
         # get all file names in input_str
-        file_names = [
-            mention for mention in mentions if mention not in (WEB_SEARCH_COMMAND,)
-        ]
+        file_names = mentions
         if file_names:
             indexed_file_ids = [
                 first_selector_choices_map.get(file_name) for file_name in file_names
@@ -828,22 +650,6 @@ class ChatPage(BasePage):
             file_ids.extend(
                 [file_id for file_id in indexed_file_ids if file_id is not None]
             )
-
-        # get all urls in input_str
-        urls, chat_input_text = get_urls(chat_input_text)
-        if urls and self.first_indexing_url_fn:
-            print("Detected URLs", urls)
-            indexed_url_ids = self.first_indexing_url_fn(
-                "\n".join(urls),
-                True,
-                settings,
-                user_id,
-                request=None,
-            )
-            file_ids.extend(indexed_url_ids)
-
-            # Add new file ids to the first selector choices for display
-            first_selector_choices.extend(zip(urls, indexed_url_ids))
 
         # if file_ids is not empty and chat_input_text is empty
         # set the input to summary
@@ -870,16 +676,13 @@ class ChatPage(BasePage):
                 raise gr.Error("Empty chat")
 
         if not conv_id:
-            if not KH_DEMO_MODE:
-                id_, update = self.chat_control.new_conv(user_id)
-                with Session(engine) as session:
-                    statement = select(Conversation).where(Conversation.id == id_)
-                    name = session.exec(statement).one().name
-                    new_conv_id = id_
-                    conv_update = update
-                    new_conv_name = name
-            else:
-                new_conv_id, new_conv_name, conv_update = None, None, gr.update()
+            id_, update = self.chat_control.new_conv(user_id)
+            with Session(engine) as session:
+                statement = select(Conversation).where(Conversation.id == id_)
+                name = session.exec(statement).one().name
+                new_conv_id = id_
+                conv_update = update
+                new_conv_name = name
         else:
             new_conv_id = conv_id
             conv_update = gr.update()
@@ -894,19 +697,7 @@ class ChatPage(BasePage):
                 new_conv_name,
             ]
             + selector_output
-            + [used_command]
         )
-
-    def get_recommendations(self, first_selector_choices, file_ids):
-        first_selector_choices_map = {
-            item[1]: item[0] for item in first_selector_choices
-        }
-        file_names = [first_selector_choices_map[file_id] for file_id in file_ids]
-        if not file_names:
-            return ""
-
-        first_file_name = file_names[0].split(".")[0].replace("_", " ")
-        return get_recommended_papers(first_file_name)
 
     def toggle_delete(self, conv_id):
         if conv_id:
@@ -1071,7 +862,6 @@ class ChatPage(BasePage):
         session_use_citation: str,
         session_language: str,
         state: dict,
-        command_state: str | None,
         user_id: int,
         *selecteds,
     ):
@@ -1130,25 +920,17 @@ class ChatPage(BasePage):
         # get retrievers
         retrievers = []
 
-        if command_state == WEB_SEARCH_COMMAND:
-            # set retriever for web search
-            if not WebSearch:
-                raise ValueError("Web search back-end is not available.")
-
-            web_search = WebSearch()
-            retrievers.append(web_search)
-        else:
-            for index in self._app.index_manager.indices:
-                index_selected = []
-                if isinstance(index.selector, int):
-                    index_selected = selecteds[index.selector]
-                if isinstance(index.selector, tuple):
-                    for i in index.selector:
-                        index_selected.append(selecteds[i])
-                iretrievers = index.get_retriever_pipelines(
-                    settings, user_id, index_selected
-                )
-                retrievers += iretrievers
+        for index in self._app.index_manager.indices:
+            index_selected = []
+            if isinstance(index.selector, int):
+                index_selected = selecteds[index.selector]
+            if isinstance(index.selector, tuple):
+                for i in index.selector:
+                    index_selected.append(selecteds[i])
+            iretrievers = index.get_retriever_pipelines(
+                settings, user_id, index_selected
+            )
+            retrievers += iretrievers
 
         # prepare states
         reasoning_state = {
@@ -1187,7 +969,6 @@ class ChatPage(BasePage):
         use_citation,
         language,
         chat_state,
-        command_state,
         user_id,
         *selecteds,
     ):
@@ -1216,7 +997,6 @@ class ChatPage(BasePage):
             use_citation,
             language,
             chat_state,
-            command_state,
             user_id,
             *selecteds,
         )

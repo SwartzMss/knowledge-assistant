@@ -16,19 +16,9 @@ from .common import STATE
 
 logger = logging.getLogger(__name__)
 
-KH_DEMO_MODE = False
-KH_SSO_ENABLED = False
 ASSETS_DIR = "assets/icons"
 if not os.path.isdir(ASSETS_DIR):
     ASSETS_DIR = "libs/ktem/ktem/assets/icons"
-
-
-logout_js = """
-function () {
-    removeFromStorage('google_api_key');
-    window.location.href = "/logout";
-}
-"""
 
 
 def is_conv_name_valid(name):
@@ -47,15 +37,11 @@ class ConversationControl(BasePage):
 
     def __init__(self, app):
         self._app = app
-        self.logout_js = logout_js
         self.on_building_ui()
 
     def on_building_ui(self):
         with gr.Row():
-            title_text = (
-                "Conversations" if not KH_DEMO_MODE else "Knowledge Assistant Demo"
-            )
-            gr.Markdown("## {}".format(title_text))
+            gr.Markdown("## Conversations")
             self.btn_toggle_dark_mode = gr.Button(
                 value="",
                 icon=f"{ASSETS_DIR}/dark_mode.svg",
@@ -108,70 +94,34 @@ class ConversationControl(BasePage):
                 label="Share this conversation",
                 elem_id="is-public-checkbox",
                 container=False,
-                visible=not KH_DEMO_MODE and not KH_SSO_ENABLED,
+                visible=True,
             )
 
-            if not KH_DEMO_MODE:
-                self.btn_conversation_rn = gr.Button(
-                    value="",
-                    icon=f"{ASSETS_DIR}/rename.svg",
-                    min_width=2,
-                    scale=1,
-                    size="sm",
-                    elem_classes=["no-background", "body-text-color"],
-                )
-                self.btn_del = gr.Button(
-                    value="",
-                    icon=f"{ASSETS_DIR}/delete.svg",
-                    min_width=2,
-                    scale=1,
-                    size="sm",
-                    elem_classes=["no-background", "body-text-color"],
-                )
-                self.btn_new = gr.Button(
-                    value="",
-                    icon=f"{ASSETS_DIR}/new.svg",
-                    min_width=2,
-                    scale=1,
-                    size="sm",
-                    elem_classes=["no-background", "body-text-color"],
-                    elem_id="new-conv-button",
-                )
-            else:
-                self.btn_new = gr.Button(
-                    value="New chat",
-                    min_width=120,
-                    size="sm",
-                    scale=1,
-                    variant="primary",
-                    elem_id="new-conv-button",
-                    visible=False,
-                )
-
-        if KH_DEMO_MODE:
-            with gr.Row():
-                self.btn_demo_login = gr.Button(
-                    "Sign-in to create new chat",
-                    min_width=120,
-                    size="sm",
-                    scale=1,
-                    variant="primary",
-                )
-                _js_redirect = """
-                () => {
-                    url = '/login' + window.location.search;
-                    window.open(url, '_blank');
-                }
-                """
-                self.btn_demo_login.click(None, js=_js_redirect)
-
-                self.btn_demo_logout = gr.Button(
-                    "Sign-out",
-                    min_width=120,
-                    size="sm",
-                    scale=1,
-                    visible=False,
-                )
+            self.btn_conversation_rn = gr.Button(
+                value="",
+                icon=f"{ASSETS_DIR}/rename.svg",
+                min_width=2,
+                scale=1,
+                size="sm",
+                elem_classes=["no-background", "body-text-color"],
+            )
+            self.btn_del = gr.Button(
+                value="",
+                icon=f"{ASSETS_DIR}/delete.svg",
+                min_width=2,
+                scale=1,
+                size="sm",
+                elem_classes=["no-background", "body-text-color"],
+            )
+            self.btn_new = gr.Button(
+                value="",
+                icon=f"{ASSETS_DIR}/new.svg",
+                min_width=2,
+                scale=1,
+                size="sm",
+                elem_classes=["no-background", "body-text-color"],
+                elem_id="new-conv-button",
+            )
 
         with gr.Row(visible=False) as self._delete_confirm:
             self.btn_del_conf = gr.Button(
@@ -365,7 +315,7 @@ class ConversationControl(BasePage):
 
     def rename_conv(self, conversation_id, new_name, is_renamed, user_id):
         """Rename the conversation"""
-        if not is_renamed or KH_DEMO_MODE or user_id is None or not conversation_id:
+        if not is_renamed or user_id is None or not conversation_id:
             return (
                 gr.update(),
                 conversation_id,
