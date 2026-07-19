@@ -29,23 +29,24 @@ jobs:
         if: ${{ steps.update-version.outputs.new_tag != steps.update-version.outputs.old_tag }}
         run: |
           echo Create release folder
-          mkdir kotaemon-app
-          echo ${{ steps.update-version.outputs.new_tag }} > kotaemon-app/VERSION
-          cp LICENSE.txt kotaemon-app/
-          cp flowsettings.py kotaemon-app/
-          cp app.py kotaemon-app/
-          cp .env.example kotaemon-app/.env
-          cp -r scripts kotaemon-app/
-          mkdir -p kotaemon-app/libs/ktem/ktem/
-          cp -r libs/ktem/ktem/assets kotaemon-app/libs/ktem/ktem/
+          mkdir knowledge-assistant
+          echo ${{ steps.update-version.outputs.new_tag }} > knowledge-assistant/VERSION
+          cp LICENSE.txt knowledge-assistant/
+          cp NOTICE knowledge-assistant/
+          cp flowsettings.py knowledge-assistant/
+          cp app.py knowledge-assistant/
+          cp .env.example knowledge-assistant/.env
+          cp -r scripts knowledge-assistant/
+          mkdir -p knowledge-assistant/libs/ktem/ktem/
+          cp -r libs/ktem/ktem/assets knowledge-assistant/libs/ktem/ktem/
 
-          tree kotaemon-app
-          zip -r kotaemon-app.zip kotaemon-app
+          tree knowledge-assistant
+          zip -r knowledge-assistant.zip knowledge-assistant
       - name: Release ${{ steps.update-version.outputs.new_tag }}
         if: ${{ steps.update-version.outputs.new_tag != steps.update-version.outputs.old_tag }}
         uses: softprops/action-gh-release@v2
         with:
-          files: kotaemon-app.zip
+          files: knowledge-assistant.zip
           fail_on_unmatched_files: true
           token: ${{ secrets.GITHUB_TOKEN }}
           generate_release_notes: true

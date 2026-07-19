@@ -1,10 +1,12 @@
-# About Kotaemon
+# About Knowledge Assistant
 
-An open-source tool for you to chat with your documents.
+Knowledge Assistant is a self-hosted application for working with documents.
+The project is currently being refactored and is not yet recommended for
+production use.
 
-[Source Code](https://github.com/Cinnamon/kotaemon) |
-[Demo](https://huggingface.co/spaces/cin-model/kotaemon-demo)
+[Source Code](https://github.com/SwartzMss/knowledge-assistant) |
+[Issues](https://github.com/SwartzMss/knowledge-assistant/issues)
 
-[User Guide](https://cinnamon.github.io/kotaemon/) |
-[Developer Guide](https://cinnamon.github.io/kotaemon/development/) |
-[Feedback](https://github.com/Cinnamon/kotaemon/issues)
+This project is an independently maintained fork of
+[Cinnamon/kotaemon](https://github.com/Cinnamon/kotaemon) and is not an
+official Kotaemon release.

@@ -1,3 +1,5 @@
+# Modified by SwartzMss in 2026 for Knowledge Assistant branding.
+
 from importlib.metadata import version
 from pathlib import Path
 
@@ -36,10 +38,13 @@ class HelpPage:
         self,
         app,
         doc_dir: str = settings.KH_DOC_DIR,
-        remote_content_url: str = "https://raw.githubusercontent.com/Cinnamon/kotaemon",
+        remote_content_url: str = (
+            "https://raw.githubusercontent.com/SwartzMss/knowledge-assistant"
+        ),
         app_version: str | None = settings.KH_APP_VERSION,
-        changelogs_cache_dir: str
-        | Path = (Path(settings.KH_APP_DATA_DIR) / "changelogs"),
+        changelogs_cache_dir: str | Path = (
+            Path(settings.KH_APP_DATA_DIR) / "changelogs"
+        ),
     ):
         self._app = app
         self.doc_dir = Path(doc_dir)
@@ -67,7 +72,7 @@ class HelpPage:
             with gr.Accordion("Create Your Own Space"):
                 gr.Markdown(
                     "This is a demo with limited functionality. "
-                    "Use **Create space** button to install Kotaemon "
+                    "Use **Create space** to install Knowledge Assistant "
                     "in your own space with all features "
                     "(including upload and manage your private "
                     "documents securely)."
@@ -99,9 +104,7 @@ class HelpPage:
                 with open(self.changelogs_cache_dir / f"{version}.md", "r") as fi:
                     changelogs = fi.read()
             else:
-                release_url_base = (
-                    "https://api.github.com/repos/Cinnamon/kotaemon/releases"
-                )
+                release_url_base = "https://api.github.com/repos/SwartzMss/knowledge-assistant/releases"
                 changelogs = download_changelogs(
                     release_url=f"{release_url_base}/tags/v{self.app_version}"
                 )

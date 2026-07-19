@@ -1,6 +1,7 @@
-repo_name: Cinnamon/kotaemon
-repo_url: https://github.com/Cinnamon/kotaemon
-site_name: kotaemon Docs
+# Modified by SwartzMss in 2026 for Knowledge Assistant branding.
+repo_name: SwartzMss/knowledge-assistant
+repo_url: https://github.com/SwartzMss/knowledge-assistant
+site_name: Knowledge Assistant Docs
 edit_uri: edit/main/docs/
 
 nav:
@@ -27,9 +28,8 @@ nav:
       - Contributing: development/contributing.md
   # generated using gen-files + literate-nav
   - API Reference: reference/
-  - Changelogs: https://github.com/Cinnamon/kotaemon/releases
-  - Issue Tracker: https://github.com/Cinnamon/kotaemon/issues
-  - Live Demo: https://huggingface.co/spaces/cin-model/kotaemon-demo
+  - Changelogs: https://github.com/SwartzMss/knowledge-assistant/releases
+  - Issue Tracker: https://github.com/SwartzMss/knowledge-assistant/issues
 
 markdown_extensions:
   - admonition
