@@ -1,5 +1,4 @@
 import re
-import threading
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Generator
@@ -9,7 +8,7 @@ import numpy as np
 from kotaemon.base import AIMessage, Document, HumanMessage, SystemMessage
 from kotaemon.llms import PromptTemplate
 
-from .citation_qa import CITATION_TIMEOUT, MAX_IMAGES, AnswerWithContextPipeline
+from .citation_qa import MAX_IMAGES, AnswerWithContextPipeline
 from .format_context import EVIDENCE_MODE_FIGURE
 from .utils import find_start_end_phrase
 
@@ -210,19 +209,6 @@ class AnswerWithInlineCitation(AnswerWithContextPipeline):
         logprobs = []
 
         citation = None
-        mindmap = None
-
-        def mindmap_call():
-            nonlocal mindmap
-            mindmap = self.create_mindmap_pipeline(context=evidence, question=question)
-
-        mindmap_thread = None
-
-        # execute function call in thread
-        if evidence:
-            if self.enable_mindmap:
-                mindmap_thread = threading.Thread(target=mindmap_call)
-                mindmap_thread.start()
 
         messages = []
         if self.system_prompt:
@@ -296,15 +282,11 @@ class AnswerWithInlineCitation(AnswerWithContextPipeline):
 
         citation = self.answer_to_citations(output)
 
-        if mindmap_thread:
-            mindmap_thread.join(timeout=CITATION_TIMEOUT)
-
         # convert citation to link
         answer = Document(
             text=final_answer,
             metadata={
                 "citation_viz": self.enable_citation_viz,
-                "mindmap": mindmap,
                 "citation": citation,
                 "qa_score": qa_score,
             },

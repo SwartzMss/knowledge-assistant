@@ -227,13 +227,6 @@ mark {
   margin-bottom: -10px;
 }
 
-#use-mindmap-checkbox {
-  position: absolute;
-  width: 110px;
-  top: 10px;
-  right: 25px;
-}
-
 #citation-dropdown {
   width: min(25%, 100px);
   position: absolute;

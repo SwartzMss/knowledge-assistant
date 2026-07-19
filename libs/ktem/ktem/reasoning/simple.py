@@ -1,6 +1,5 @@
 import logging
 import threading
-from textwrap import dedent
 from typing import Generator
 
 from decouple import config
@@ -40,7 +39,6 @@ logger = logging.getLogger(__name__)
 
 
 class AddQueryContextPipeline(BaseComponent):
-
     n_last_interactions: int = 5
     llm: ChatLLM = Node(default_callback=lambda _: llms.get_default())
 
@@ -163,46 +161,6 @@ class FullQAPipeline(BaseReasoning):
 
         return docs, info
 
-    def prepare_mindmap(self, answer) -> Document | None:
-        mindmap = answer.metadata["mindmap"]
-        if mindmap:
-            mindmap_text = mindmap.text
-            mindmap_svg = dedent(
-                """
-                <div class="markmap">
-                <script type="text/template">
-                ---
-                markmap:
-                    colorFreezeLevel: 2
-                    activeNode:
-                        placement: center
-                    initialExpandLevel: 4
-                    maxWidth: 200
-                ---
-                {}
-                </script>
-                </div>
-                """
-            ).format(mindmap_text)
-
-            mindmap_content = Document(
-                channel="info",
-                content=Render.collapsible(
-                    header="""
-                    <i>Mindmap</i>
-                    <a href="#" id='mindmap-toggle'>
-                        [Expand]</a>
-                    <a href="#" id='mindmap-export'>
-                        [Export]</a>""",
-                    content=mindmap_svg,
-                    open=True,
-                ),
-            )
-        else:
-            mindmap_content = None
-
-        return mindmap_content
-
     def prepare_citation_viz(self, answer, question, docs) -> Document | None:
         doc_texts = [doc.text for doc in docs]
         citation_plot = None
@@ -225,7 +183,6 @@ class FullQAPipeline(BaseReasoning):
         with_citation, without_citation = self.answering_pipeline.prepare_citations(
             answer, docs
         )
-        mindmap_output = self.prepare_mindmap(answer)
         citation_plot_output = self.prepare_citation_viz(answer, question, docs)
 
         if not with_citation and not without_citation:
@@ -238,10 +195,6 @@ class FullQAPipeline(BaseReasoning):
             has_llm_score = any("llm_trulens_score" in doc.metadata for doc in docs)
             # clear previous info
             yield Document(channel="info", content=None)
-
-            # yield mindmap output
-            if mindmap_output:
-                yield mindmap_output
 
             # yield citation plot output
             if citation_plot_output:
@@ -274,12 +227,20 @@ class FullQAPipeline(BaseReasoning):
                 yield from without_citation
 
     async def ainvoke(  # type: ignore
-        self, message: str, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message: str,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Document:  # type: ignore
         raise NotImplementedError
 
     def stream(  # type: ignore
-        self, message: str, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message: str,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Generator[Document, None, Document]:
         if self.use_rewrite and self.rewrite_pipeline:
             print("Chosen rewrite pipeline", self.rewrite_pipeline)
@@ -371,7 +332,6 @@ class FullQAPipeline(BaseReasoning):
         answer_pipeline.enable_citation = (
             settings[f"{prefix}.highlight_citation"] != "off"
         )
-        answer_pipeline.enable_mindmap = settings[f"{prefix}.create_mindmap"]
         answer_pipeline.enable_citation_viz = settings[f"{prefix}.create_citation_viz"]
         answer_pipeline.use_multimodal = settings[f"{prefix}.use_multimodal"]
         answer_pipeline.system_prompt = settings[f"{prefix}.system_prompt"]
@@ -430,11 +390,6 @@ class FullQAPipeline(BaseReasoning):
                     ("citation: inline", "inline"),
                     ("no citation", "off"),
                 ],
-            },
-            "create_mindmap": {
-                "name": "Create Mindmap",
-                "value": False,
-                "component": "checkbox",
             },
             "create_citation_viz": {
                 "name": "Create Embeddings Visualization",
@@ -519,7 +474,11 @@ class FullDecomposeQAPipeline(FullQAPipeline):
         return output_str
 
     def stream(  # type: ignore
-        self, message: str, conv_id: str, history: list, **kwargs  # type: ignore
+        self,
+        message: str,
+        conv_id: str,
+        history: list,
+        **kwargs,  # type: ignore
     ) -> Generator[Document, None, Document]:
         sub_question_answer_output = ""
         if self.rewrite_pipeline:

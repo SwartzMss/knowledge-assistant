@@ -36,16 +36,7 @@ from theflow.utils.modules import import_dotted_string
 from kotaemon.base import BaseComponent, Document, Node, Param, RetrievedDocument
 from kotaemon.embeddings import BaseEmbeddings
 from kotaemon.indices import VectorIndexing, VectorRetrieval
-from kotaemon.indices.ingests.files import (
-    KH_DEFAULT_FILE_EXTRACTORS,
-    adobe_reader,
-    azure_reader,
-    docling_reader,
-    paddle_struct_reader,
-    paddle_vl_reader,
-    unstructured,
-    web_reader,
-)
+from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
 from kotaemon.indices.rankings import BaseReranking, LLMReranking, LLMTrulensScoring
 from kotaemon.indices.splitters import BaseSplitter, TokenSplitter
 
@@ -671,43 +662,12 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     decide which pipeline should be used.
     """
 
-    reader_mode: str = Param("default", help="The reader mode")
     embedding: BaseEmbeddings
     run_embedding_in_thread: bool = False
 
-    @Param.auto(depends_on="reader_mode")
+    @Param.auto()
     def readers(self):
         readers = deepcopy(KH_DEFAULT_FILE_EXTRACTORS)
-        print("reader_mode", self.reader_mode)
-        if self.reader_mode == "adobe":
-            readers[".pdf"] = adobe_reader
-        elif self.reader_mode == "azure-di":
-            readers[".pdf"] = azure_reader
-        elif self.reader_mode == "docling":
-            readers[".pdf"] = docling_reader
-        elif self.reader_mode == "paddle-struct":
-            readers.update(
-                {
-                    ".pdf": paddle_struct_reader,
-                    ".png": paddle_struct_reader,
-                    ".jpeg": paddle_struct_reader,
-                    ".jpg": paddle_struct_reader,
-                    ".tiff": paddle_struct_reader,
-                    ".tif": paddle_struct_reader,
-                }
-            )
-        elif self.reader_mode == "paddle-vl":
-            readers.update(
-                {
-                    ".pdf": paddle_vl_reader,
-                    ".png": paddle_vl_reader,
-                    ".jpeg": paddle_vl_reader,
-                    ".jpg": paddle_vl_reader,
-                    ".tiff": paddle_vl_reader,
-                    ".tif": paddle_vl_reader,
-                }
-            )
-
         dev_readers, _, _ = dev_settings()
         readers.update(dev_readers)
 
@@ -715,27 +675,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
 
     @classmethod
     def get_user_settings(cls):
-        return {
-            "reader_mode": {
-                "name": "File loader",
-                "value": "default",
-                "choices": [
-                    ("Default (open-source)", "default"),
-                    ("Adobe API (figure+table extraction)", "adobe"),
-                    (
-                        "Azure AI Document Intelligence (figure+table extraction)",
-                        "azure-di",
-                    ),
-                    ("Docling (figure+table extraction)", "docling"),
-                    (
-                        "PaddleOCR PPStructureV3 (table+figure extraction)",
-                        "paddle-struct",
-                    ),
-                    ("PaddleOCR-VL (VLM document parsing)", "paddle-vl"),
-                ],
-                "component": "dropdown",
-            },
-        }
+        return {}
 
     @classmethod
     def get_pipeline(cls, user_settings, index_settings) -> BaseFileIndexIndexing:
@@ -748,7 +688,6 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 )
             ],
             run_embedding_in_thread=use_quick_index_mode,
-            reader_mode=user_settings.get("reader_mode", "default"),
         )
         return obj
 
@@ -768,18 +707,18 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         chunk_size = self.chunk_size or dev_chunk_size
         chunk_overlap = self.chunk_overlap or dev_chunk_overlap
 
-        # check if file_path is a URL
         if self.is_url(file_path):
-            reader = web_reader
-        else:
-            assert isinstance(file_path, Path)
-            ext = file_path.suffix.lower()
-            reader = self.readers.get(ext, unstructured)
-            if reader is None:
-                raise NotImplementedError(
-                    f"No supported pipeline to index {file_path.name}. Please specify "
-                    "the suitable pipeline for this file type in the settings."
-                )
+            raise NotImplementedError(
+                "URL indexing is not part of the minimal baseline."
+            )
+
+        assert isinstance(file_path, Path)
+        ext = file_path.suffix.lower()
+        reader = self.readers.get(ext)
+        if reader is None:
+            raise NotImplementedError(
+                f"No supported pipeline to index {file_path.name}."
+            )
 
         print(f"Chunk size: {chunk_size}, chunk overlap: {chunk_overlap}")
 
