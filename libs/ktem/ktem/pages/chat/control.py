@@ -2,8 +2,6 @@
 
 import logging
 import os
-from copy import deepcopy
-
 import gradio as gr
 from ktem.app import BasePage
 from ktem.db.models import Conversation, User, engine

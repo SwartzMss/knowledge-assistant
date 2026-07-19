@@ -5,12 +5,10 @@ from copy import deepcopy
 from typing import Optional
 
 import gradio as gr
-from decouple import config
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Conversation, engine
 from ktem.index.file.ui import File
-from ktem.reasoning.prompt_optimization.mindmap import MINDMAP_HTML_EXPORT_TEMPLATE
 from plotly.io import from_json
 from sqlmodel import Session, select
 from theflow.settings import settings as flowsettings
@@ -19,7 +17,6 @@ from kotaemon.base import Document
 from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
 
 from ...utils import (
-    SUPPORTED_LANGUAGE_MAP,
     format_mentions_for_display,
     get_mentions_regex,
     prepare_llm_query,
@@ -27,7 +24,6 @@ from ...utils import (
 from .chat_panel import ChatPanel
 from .common import STATE
 from .control import ConversationControl
-from .report import ReportIssue
 
 REASONING_LIMITS = 10
 DEFAULT_SETTING = "(default)"
@@ -68,64 +64,9 @@ function() {
         links[i].onclick = scrollToCitation;
     }
 
-    var markmap_div = document.querySelector("div.markmap");
-    var mindmap_el_script = document.querySelector('div.markmap script');
-
-    if (mindmap_el_script) {
-        markmap_div_html = markmap_div.outerHTML;
-    }
-
-    // render the mindmap if the script tag is present
-    if (mindmap_el_script) {
-        markmap.autoLoader.renderAll();
-    }
-
-    setTimeout(() => {
-        var mindmap_el = document.querySelector('svg.markmap');
-
-        var text_nodes = document.querySelectorAll("svg.markmap div");
-        for (var i = 0; i < text_nodes.length; i++) {
-            text_nodes[i].onclick = fillChatInput;
-        }
-
-        if (mindmap_el) {
-            function on_svg_export(event) {
-                html = "{html_template}";
-                html = html.replace("{markmap_div}", markmap_div_html);
-                spawnDocument(html, {window: "width=1000,height=1000"});
-            }
-
-            var link = document.getElementById("mindmap-toggle");
-            if (link) {
-                link.onclick = function(event) {
-                    event.preventDefault(); // Prevent the default link behavior
-                    var div = document.querySelector("div.markmap");
-                    if (div) {
-                        var currentHeight = div.style.height;
-                        if (currentHeight === '400px' || (currentHeight === '')) {
-                            div.style.height = '650px';
-                        } else {
-                            div.style.height = '400px'
-                        }
-                    }
-                };
-            }
-
-            if (markmap_div_html) {
-                var link = document.getElementById("mindmap-export");
-                if (link) {
-                    link.addEventListener('click', on_svg_export);
-                }
-            }
-        }
-    }, 250);
-
     return [links.length]
 }
-""".replace(
-    "{html_template}",
-    MINDMAP_HTML_EXPORT_TEMPLATE.replace("\n", "").replace('"', '\\"'),
-)
+"""
 
 
 class ChatPage(BasePage):
@@ -137,7 +78,6 @@ class ChatPage(BasePage):
 
         self._preview_links = gr.State(value=None)
         self._reasoning_type = gr.State(value=None)
-        self._conversation_renamed = gr.State(value=False)
         self._info_panel_expanded = gr.State(value=True)
 
     def on_building_ui(self):
@@ -201,8 +141,6 @@ class ChatPage(BasePage):
                             elem_id="quick-file",
                         )
 
-                self.report_issue = ReportIssue(self._app)
-
             with gr.Column(scale=6, elem_id="chat-area"):
                 self.chat_panel = ChatPanel(self._app)
 
@@ -260,23 +198,6 @@ class ChatPage(BasePage):
                             elem_id="citation-dropdown",
                         )
 
-                        if not config("USE_LOW_LLM_REQUESTS", default=False, cast=bool):
-                            self.use_mindmap = gr.State(value=True)
-                            self.use_mindmap_check = gr.Checkbox(
-                                label="Mindmap (on)",
-                                container=False,
-                                elem_id="use-mindmap-checkbox",
-                                value=True,
-                            )
-                        else:
-                            self.use_mindmap = gr.State(value=False)
-                            self.use_mindmap_check = gr.Checkbox(
-                                label="Mindmap (off)",
-                                container=False,
-                                elem_id="use-mindmap-checkbox",
-                                value=False,
-                            )
-
             with gr.Column(
                 scale=INFO_PANEL_SCALES[False], elem_id="chat-info-panel"
             ) as self.info_column:
@@ -332,7 +253,6 @@ class ChatPage(BasePage):
                     self._app.settings_state,
                     self.reasoning_type,
                     self.model_type,
-                    self.use_mindmap,
                     self.citation,
                     self.language,
                     self.state_chat,
@@ -390,114 +310,113 @@ class ChatPage(BasePage):
             fn=None, inputs=None, js="function() {toggleChatColumn();}"
         )
 
-        if True:
-            self.chat_control.btn_new.click(
-                self.chat_control.new_conv,
-                inputs=self._app.user_id,
-                outputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation,
-                ],
-                show_progress="hidden",
-            ).then(
-                self.chat_control.select_conv,
-                inputs=[self.chat_control.conversation, self._app.user_id],
-                outputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation,
-                    self.chat_control.conversation_rn,
-                    self.chat_panel.chatbot,
-                    self.info_panel,
-                    self.state_plot_panel,
-                    self.state_retrieval_history,
-                    self.state_plot_history,
-                    self.chat_control.cb_is_public,
-                    self.state_chat,
-                ]
-                + self._indices_input,
-                show_progress="hidden",
-            ).then(
-                fn=self._json_to_plot,
-                inputs=self.state_plot_panel,
-                outputs=self.plot_panel,
-            ).then(
-                fn=None,
-                inputs=None,
-                js=chat_input_focus_js,
-            )
+        self.chat_control.btn_new.click(
+            self.chat_control.new_conv,
+            inputs=self._app.user_id,
+            outputs=[
+                self.chat_control.conversation_id,
+                self.chat_control.conversation,
+            ],
+            show_progress="hidden",
+        ).then(
+            self.chat_control.select_conv,
+            inputs=[self.chat_control.conversation, self._app.user_id],
+            outputs=[
+                self.chat_control.conversation_id,
+                self.chat_control.conversation,
+                self.chat_control.conversation_rn,
+                self.chat_panel.chatbot,
+                self.info_panel,
+                self.state_plot_panel,
+                self.state_retrieval_history,
+                self.state_plot_history,
+                self.chat_control.cb_is_public,
+                self.state_chat,
+            ]
+            + self._indices_input,
+            show_progress="hidden",
+        ).then(
+            fn=self._json_to_plot,
+            inputs=self.state_plot_panel,
+            outputs=self.plot_panel,
+        ).then(
+            fn=None,
+            inputs=None,
+            js=chat_input_focus_js,
+        )
 
-            self.chat_control.btn_del.click(
-                lambda id: self.toggle_delete(id),
-                inputs=[self.chat_control.conversation_id],
-                outputs=[
-                    self.chat_control._new_delete,
-                    self.chat_control._delete_confirm,
-                ],
-            )
-            self.chat_control.btn_del_conf.click(
-                self.chat_control.delete_conv,
-                inputs=[self.chat_control.conversation_id, self._app.user_id],
-                outputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation,
-                ],
-                show_progress="hidden",
-            ).then(
-                self.chat_control.select_conv,
-                inputs=[self.chat_control.conversation, self._app.user_id],
-                outputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation,
-                    self.chat_control.conversation_rn,
-                    self.chat_panel.chatbot,
-                    self.info_panel,
-                    self.state_plot_panel,
-                    self.state_retrieval_history,
-                    self.state_plot_history,
-                    self.chat_control.cb_is_public,
-                    self.state_chat,
-                ]
-                + self._indices_input,
-                show_progress="hidden",
-            ).then(
-                fn=self._json_to_plot,
-                inputs=self.state_plot_panel,
-                outputs=self.plot_panel,
-            ).then(
-                lambda: self.toggle_delete(""),
-                outputs=[
-                    self.chat_control._new_delete,
-                    self.chat_control._delete_confirm,
-                ],
-            )
-            self.chat_control.btn_del_cnl.click(
-                lambda: self.toggle_delete(""),
-                outputs=[
-                    self.chat_control._new_delete,
-                    self.chat_control._delete_confirm,
-                ],
-            )
-            self.chat_control.btn_conversation_rn.click(
-                lambda: gr.update(visible=True),
-                outputs=[
-                    self.chat_control.conversation_rn,
-                ],
-            )
-            self.chat_control.conversation_rn.submit(
-                self.chat_control.rename_conv,
-                inputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation_rn,
-                    gr.State(value=True),
-                    self._app.user_id,
-                ],
-                outputs=[
-                    self.chat_control.conversation,
-                    self.chat_control.conversation,
-                    self.chat_control.conversation_rn,
-                ],
-                show_progress="hidden",
-            )
+        self.chat_control.btn_del.click(
+            lambda id: self.toggle_delete(id),
+            inputs=[self.chat_control.conversation_id],
+            outputs=[
+                self.chat_control._new_delete,
+                self.chat_control._delete_confirm,
+            ],
+        )
+        self.chat_control.btn_del_conf.click(
+            self.chat_control.delete_conv,
+            inputs=[self.chat_control.conversation_id, self._app.user_id],
+            outputs=[
+                self.chat_control.conversation_id,
+                self.chat_control.conversation,
+            ],
+            show_progress="hidden",
+        ).then(
+            self.chat_control.select_conv,
+            inputs=[self.chat_control.conversation, self._app.user_id],
+            outputs=[
+                self.chat_control.conversation_id,
+                self.chat_control.conversation,
+                self.chat_control.conversation_rn,
+                self.chat_panel.chatbot,
+                self.info_panel,
+                self.state_plot_panel,
+                self.state_retrieval_history,
+                self.state_plot_history,
+                self.chat_control.cb_is_public,
+                self.state_chat,
+            ]
+            + self._indices_input,
+            show_progress="hidden",
+        ).then(
+            fn=self._json_to_plot,
+            inputs=self.state_plot_panel,
+            outputs=self.plot_panel,
+        ).then(
+            lambda: self.toggle_delete(""),
+            outputs=[
+                self.chat_control._new_delete,
+                self.chat_control._delete_confirm,
+            ],
+        )
+        self.chat_control.btn_del_cnl.click(
+            lambda: self.toggle_delete(""),
+            outputs=[
+                self.chat_control._new_delete,
+                self.chat_control._delete_confirm,
+            ],
+        )
+        self.chat_control.btn_conversation_rn.click(
+            lambda: gr.update(visible=True),
+            outputs=[
+                self.chat_control.conversation_rn,
+            ],
+        )
+        self.chat_control.conversation_rn.submit(
+            self.chat_control.rename_conv,
+            inputs=[
+                self.chat_control.conversation_id,
+                self.chat_control.conversation_rn,
+                gr.State(value=True),
+                self._app.user_id,
+            ],
+            outputs=[
+                self.chat_control.conversation,
+                self.chat_control.conversation,
+                self.chat_control.conversation_rn,
+            ],
+            show_progress="hidden",
+        )
 
         onConvSelect = (
             self.chat_control.conversation.select(
@@ -575,41 +494,11 @@ class ChatPage(BasePage):
             show_progress="hidden",
         )
 
-        # user feedback events
-        self.chat_panel.chatbot.like(
-            fn=self.is_liked,
-            inputs=[self.chat_control.conversation_id],
-            outputs=None,
-        )
-        self.report_issue.report_btn.click(
-            self.report_issue.report,
-            inputs=[
-                self.report_issue.correctness,
-                self.report_issue.issues,
-                self.report_issue.more_detail,
-                self.chat_control.conversation_id,
-                self.chat_panel.chatbot,
-                self._app.settings_state,
-                self._app.user_id,
-                self.info_panel,
-                self.state_chat,
-            ]
-            + self._indices_input,
-            outputs=None,
-        )
-
         self.reasoning_type.change(
             self.reasoning_changed,
             inputs=[self.reasoning_type],
             outputs=[self._reasoning_type],
         )
-        self.use_mindmap_check.change(
-            lambda x: (x, gr.update(label="Mindmap " + ("(on)" if x else "(off)"))),
-            inputs=[self.use_mindmap_check],
-            outputs=[self.use_mindmap, self.use_mindmap_check],
-            show_progress="hidden",
-        )
-
         self.chat_control.conversation_id.change(
             lambda: gr.update(visible=False),
             outputs=self.plot_panel,
@@ -688,16 +577,13 @@ class ChatPage(BasePage):
             conv_update = gr.update()
             new_conv_name = conv_name
 
-        return (
-            [
-                {},
-                chat_history,
-                new_conv_id,
-                conv_update,
-                new_conv_name,
-            ]
-            + selector_output
-        )
+        return [
+            {},
+            chat_history,
+            new_conv_id,
+            conv_update,
+            new_conv_name,
+        ] + selector_output
 
     def toggle_delete(self, conv_id):
         if conv_id:
@@ -814,7 +700,6 @@ class ChatPage(BasePage):
                 "retrieval_messages": retrival_history,
                 "plot_history": plot_history,
                 "state": state,
-                "likes": deepcopy(data_source.get("likes", [])),
             }
             session.add(result)
             session.commit()
@@ -826,20 +711,6 @@ class ChatPage(BasePage):
             # override app settings state (temporary)
             gr.Info("Reasoning type changed to `{}`".format(reasoning_type))
         return reasoning_type
-
-    def is_liked(self, convo_id, liked: gr.LikeData):
-        with Session(engine) as session:
-            statement = select(Conversation).where(Conversation.id == convo_id)
-            result = session.exec(statement).one()
-
-            data_source = deepcopy(result.data_source)
-            likes = data_source.get("likes", [])
-            likes.append([liked.index, liked.value, liked.liked])
-            data_source["likes"] = likes
-
-            result.data_source = data_source
-            session.add(result)
-            session.commit()
 
     def message_selected(self, retrieval_history, plot_history, msg: gr.SelectData):
         index = msg.index[0]
@@ -858,7 +729,6 @@ class ChatPage(BasePage):
         settings: dict,
         session_reasoning_type: str,
         session_llm: str,
-        session_use_mindmap: bool | str,
         session_use_citation: str,
         session_language: str,
         state: dict,
@@ -880,8 +750,6 @@ class ChatPage(BasePage):
         print(
             "Session reasoning type",
             session_reasoning_type,
-            "use mindmap",
-            session_use_mindmap,
             "use citation",
             session_use_citation,
             "language",
@@ -905,9 +773,6 @@ class ChatPage(BasePage):
             "",
         ):
             settings[llm_setting_key] = session_llm
-
-        if session_use_mindmap not in (DEFAULT_SETTING, None):
-            settings["reasoning.options.simple.create_mindmap"] = session_use_mindmap
 
         if session_use_citation not in (DEFAULT_SETTING, None):
             settings["reasoning.options.simple.highlight_citation"] = (
@@ -965,7 +830,6 @@ class ChatPage(BasePage):
         settings,
         reasoning_type,
         llm_type,
-        use_mind_map,
         use_citation,
         language,
         chat_state,
@@ -993,7 +857,6 @@ class ChatPage(BasePage):
             settings,
             reasoning_type,
             llm_type,
-            use_mind_map,
             use_citation,
             language,
             chat_state,
@@ -1022,7 +885,6 @@ class ChatPage(BasePage):
                 conversation_id,
                 chat_history,
             ):
-
                 if not isinstance(response, Document):
                     continue
 

@@ -26,7 +26,6 @@ from .utils import find_text
 
 try:
     from ktem.llms.manager import llms
-    from ktem.reasoning.prompt_optimization.mindmap import CreateMindmapPipeline
     from ktem.utils.render import Render
 except ImportError:
     raise ImportError("Please install `ktem` to use this component")
@@ -101,17 +100,12 @@ class AnswerWithContextPipeline(BaseComponent):
     citation_pipeline: CitationPipeline = Node(
         default_callback=lambda _: CitationPipeline(llm=llms.get_default())
     )
-    create_mindmap_pipeline: CreateMindmapPipeline = Node(
-        default_callback=lambda _: CreateMindmapPipeline(llm=llms.get_default())
-    )
-
     qa_template: str = DEFAULT_QA_TEXT_PROMPT
     qa_table_template: str = DEFAULT_QA_TABLE_PROMPT
     qa_chatbot_template: str = DEFAULT_QA_CHATBOT_PROMPT
     qa_figure_template: str = DEFAULT_QA_FIGURE_PROMPT
 
     enable_citation: bool = False
-    enable_mindmap: bool = False
     enable_citation_viz: bool = False
 
     system_prompt: str = ""
@@ -205,28 +199,18 @@ class AnswerWithContextPipeline(BaseComponent):
 
         # retrieve the citation
         citation = None
-        mindmap = None
 
         def citation_call():
             nonlocal citation
             citation = self.citation_pipeline(context=evidence, question=question)
 
-        def mindmap_call():
-            nonlocal mindmap
-            mindmap = self.create_mindmap_pipeline(context=evidence, question=question)
-
         citation_thread = None
-        mindmap_thread = None
 
         # execute function call in thread
         if evidence:
             if self.enable_citation:
                 citation_thread = threading.Thread(target=citation_call)
                 citation_thread.start()
-
-            if self.enable_mindmap:
-                mindmap_thread = threading.Thread(target=mindmap_call)
-                mindmap_thread.start()
 
         output = ""
         logprobs = []
@@ -278,14 +262,10 @@ class AnswerWithContextPipeline(BaseComponent):
 
         if citation_thread:
             citation_thread.join(timeout=CITATION_TIMEOUT)
-        if mindmap_thread:
-            mindmap_thread.join(timeout=CITATION_TIMEOUT)
-
         answer = Document(
             text=output,
             metadata={
                 "citation_viz": self.enable_citation_viz,
-                "mindmap": mindmap,
                 "citation": citation,
                 "qa_score": qa_score,
             },
@@ -388,8 +368,7 @@ class AnswerWithContextPipeline(BaseComponent):
             doc = id2docs[id_]
             doc_score = doc.metadata.get("llm_trulens_score", 0.0)
             is_open = not has_llm_score or (
-                doc_score
-                > CONTEXT_RELEVANT_WARNING_SCORE
+                doc_score > CONTEXT_RELEVANT_WARNING_SCORE
                 # and len(with_citation) == 0
             )
             without_citation.append(

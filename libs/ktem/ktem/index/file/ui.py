@@ -209,8 +209,7 @@ class FileIndexPage(BasePage):
             value="",
             label="Filter by name:",
             info=(
-                "(1) Case-insensitive. "
-                "(2) Search with empty string to show all files."
+                "(1) Case-insensitive. (2) Search with empty string to show all files."
             ),
         )
         self.file_list_state = gr.State(value=None)
@@ -230,7 +229,6 @@ class FileIndexPage(BasePage):
         )
 
         with gr.Row():
-
             self.chat_button = gr.Button(
                 "Go to Chat",
                 visible=False,
@@ -269,10 +267,9 @@ class FileIndexPage(BasePage):
 
         with gr.Accordion("Advance options", open=False):
             with gr.Row():
-                if True:
-                    self.download_all_button = gr.DownloadButton(
-                        "Download all files",
-                    )
+                self.download_all_button = gr.DownloadButton(
+                    "Download all files",
+                )
                 self.delete_all_button = gr.Button(
                     "Delete all files",
                     variant="stop",
@@ -339,24 +336,16 @@ class FileIndexPage(BasePage):
         with gr.Row():
             with gr.Column(scale=1):
                 with gr.Column() as self.upload:
-                    with gr.Tab("Upload Files"):
-                        self.files = File(
-                            file_types=self._supported_file_types,
-                            file_count="multiple",
-                            container=True,
-                            show_label=False,
-                        )
+                    self.files = File(
+                        file_types=self._supported_file_types,
+                        file_count="multiple",
+                        container=True,
+                        show_label=False,
+                    )
 
-                        msg = self.upload_instruction()
-                        if msg:
-                            gr.Markdown(msg)
-
-                    with gr.Tab("Use Web Links"):
-                        self.urls = gr.Textbox(
-                            label="Input web URLs",
-                            lines=8,
-                        )
-                        gr.Markdown("(separated by new line)")
+                    msg = self.upload_instruction()
+                    if msg:
+                        gr.Markdown(msg)
 
                     with gr.Accordion("Advanced indexing options", open=False):
                         with gr.Row():
@@ -498,7 +487,7 @@ class FileIndexPage(BasePage):
                     url=doc.metadata.get("image_origin", ""), text=doc.text
                 )
 
-            header_prefix = f"[{idx+1}/{total}]"
+            header_prefix = f"[{idx + 1}/{total}]"
             if doc.metadata.get("page_label"):
                 header_prefix += f" [Page {doc.metadata['page_label']}]"
             badge = f' <span style="opacity:0.7;font-size:0.85em">({doc_type})</span>'
@@ -683,65 +672,62 @@ class FileIndexPage(BasePage):
                 self.quick_upload_state = gr.State(value=[])
                 print("Setting up quick upload event")
 
-                if True:
-                    quickUploadedEvent = (
-                        self._app.chat_page.quick_file_upload.upload(
-                            fn=lambda: gr.update(
-                                value="Please wait for the indexing process "
-                                "to complete before adding your question."
-                            ),
-                            outputs=self._app.chat_page.quick_file_upload_status,
-                        )
-                        .then(
-                            fn=self.index_fn_file_with_default_loaders,
-                            inputs=[
-                                self._app.chat_page.quick_file_upload,
-                                gr.State(value=False),
-                                self._app.settings_state,
-                                self._app.user_id,
-                            ],
-                            outputs=self.quick_upload_state,
-                            concurrency_limit=10,
-                        )
-                        .success(
-                            fn=lambda: [
-                                gr.update(value=None),
-                                gr.update(value="select"),
-                            ],
-                            outputs=[
-                                self._app.chat_page.quick_file_upload,
-                                self._app.chat_page._indices_input[0],
-                            ],
-                        )
+                quickUploadedEvent = (
+                    self._app.chat_page.quick_file_upload.upload(
+                        fn=lambda: gr.update(
+                            value="Please wait for the indexing process "
+                            "to complete before adding your question."
+                        ),
+                        outputs=self._app.chat_page.quick_file_upload_status,
                     )
-                    for event in self._app.get_event(
-                        f"onFileIndex{self._index.id}Changed"
-                    ):
-                        quickUploadedEvent = quickUploadedEvent.then(**event)
+                    .then(
+                        fn=self.index_fn_file_with_default_loaders,
+                        inputs=[
+                            self._app.chat_page.quick_file_upload,
+                            gr.State(value=False),
+                            self._app.settings_state,
+                            self._app.user_id,
+                        ],
+                        outputs=self.quick_upload_state,
+                        concurrency_limit=10,
+                    )
+                    .success(
+                        fn=lambda: [
+                            gr.update(value=None),
+                            gr.update(value="select"),
+                        ],
+                        outputs=[
+                            self._app.chat_page.quick_file_upload,
+                            self._app.chat_page._indices_input[0],
+                        ],
+                    )
+                )
+                for event in self._app.get_event(f"onFileIndex{self._index.id}Changed"):
+                    quickUploadedEvent = quickUploadedEvent.then(**event)
 
-                    quickUploadedEvent = (
-                        quickUploadedEvent.success(
-                            fn=lambda x: x,
-                            inputs=self.quick_upload_state,
-                            outputs=self._app.chat_page._indices_input[1],
-                        )
-                        .then(
-                            fn=lambda: gr.update(value="Indexing completed."),
-                            outputs=self._app.chat_page.quick_file_upload_status,
-                        )
-                        .then(
-                            fn=self.list_file,
-                            inputs=[self._app.user_id, self.filter],
-                            outputs=[self.file_list_state, self.file_list],
-                            concurrency_limit=20,
-                        )
-                        .then(
-                            fn=lambda: True,
-                            inputs=None,
-                            outputs=None,
-                            js=chat_input_focus_js_with_submit,
-                        )
+                quickUploadedEvent = (
+                    quickUploadedEvent.success(
+                        fn=lambda x: x,
+                        inputs=self.quick_upload_state,
+                        outputs=self._app.chat_page._indices_input[1],
                     )
+                    .then(
+                        fn=lambda: gr.update(value="Indexing completed."),
+                        outputs=self._app.chat_page.quick_file_upload_status,
+                    )
+                    .then(
+                        fn=self.list_file,
+                        inputs=[self._app.user_id, self.filter],
+                        outputs=[self.file_list_state, self.file_list],
+                        concurrency_limit=20,
+                    )
+                    .then(
+                        fn=lambda: True,
+                        inputs=None,
+                        outputs=None,
+                        js=chat_input_focus_js_with_submit,
+                    )
+                )
 
         except Exception as e:
             print(e)
@@ -815,13 +801,12 @@ class FileIndexPage(BasePage):
             ],
         )
 
-        if True:
-            self.download_all_button.click(
-                fn=self.download_all_files,
-                inputs=[],
-                outputs=self.download_all_button,
-                show_progress="hidden",
-            )
+        self.download_all_button.click(
+            fn=self.download_all_files,
+            inputs=[],
+            outputs=self.download_all_button,
+            show_progress="hidden",
+        )
 
         self.delete_all_button.click(
             self.show_delete_all_confirm,
@@ -869,42 +854,25 @@ class FileIndexPage(BasePage):
             ],
         )
 
-        if True:
-            self.download_single_button.click(
-                fn=self.download_single_file,
-                inputs=[self.is_zipped_state, self.selected_file_id],
-                outputs=[self.is_zipped_state, self.download_single_button],
-                show_progress="hidden",
-            )
-        else:
-            self.download_single_button.click(
-                fn=self.download_single_file_simple,
-                inputs=[self.is_zipped_state, self.chunks, self.selected_file_id],
-                outputs=[self.is_zipped_state, self.download_single_button],
-                show_progress="hidden",
-            )
-
-        onUploaded = (
-            self.upload_button.click(
-                fn=lambda: gr.update(visible=True),
-                outputs=[self.upload_progress_panel],
-            )
-            .then(
-                fn=self.index_fn,
-                inputs=[
-                    self.files,
-                    self.urls,
-                    self.reindex,
-                    self._app.settings_state,
-                    self._app.user_id,
-                ],
-                outputs=[self.upload_result, self.upload_info],
-                concurrency_limit=20,
-            )
-            .then(
-                fn=lambda: gr.update(value=""),
-                outputs=[self.urls],
-            )
+        self.download_single_button.click(
+            fn=self.download_single_file,
+            inputs=[self.is_zipped_state, self.selected_file_id],
+            outputs=[self.is_zipped_state, self.download_single_button],
+            show_progress="hidden",
+        )
+        onUploaded = self.upload_button.click(
+            fn=lambda: gr.update(visible=True),
+            outputs=[self.upload_progress_panel],
+        ).then(
+            fn=self.index_fn,
+            inputs=[
+                self.files,
+                self.reindex,
+                self._app.settings_state,
+                self._app.user_id,
+            ],
+            outputs=[self.upload_result, self.upload_info],
+            concurrency_limit=20,
         )
 
         uploadedEvent = onUploaded.then(
@@ -1123,30 +1091,25 @@ class FileIndexPage(BasePage):
         return remaining_files, errors
 
     def index_fn(
-        self, files, urls, reindex: bool, settings, user_id
+        self, files, reindex: bool, settings, user_id
     ) -> Generator[tuple[str, str], None, None]:
         """Upload and index the files
 
         Args:
             files: the list of files to be uploaded
-            urls: list of web URLs to be indexed
             reindex: whether to reindex the files
             selected_files: the list of files already selected
             settings: the settings of the app
         """
-        if urls:
-            files = [it.strip() for it in urls.split("\n")]
-            errors = self.validate_urls(files)
-        else:
-            if not files:
-                gr.Info("No uploaded file")
-                yield "", ""
-                return
-            files, unzip_errors = self._may_extract_zip(
-                files, flowsettings.KH_ZIP_INPUT_DIR
-            )
-            errors = self.validate_files(files)
-            errors.extend(unzip_errors)
+        if not files:
+            gr.Info("No uploaded file")
+            yield "", ""
+            return
+        files, unzip_errors = self._may_extract_zip(
+            files, flowsettings.KH_ZIP_INPUT_DIR
+        )
+        errors = self.validate_files(files)
+        errors.extend(unzip_errors)
 
         if errors:
             gr.Warning(", ".join(errors))
@@ -1221,10 +1184,9 @@ class FileIndexPage(BasePage):
 
         returned_ids = []
         settings = deepcopy(settings)
-        settings[f"index.options.{self._index.id}.reader_mode"] = "default"
         settings[f"index.options.{self._index.id}.quick_index_mode"] = True
         if to_process_files:
-            _iter = self.index_fn(to_process_files, [], reindex, settings, user_id)
+            _iter = self.index_fn(to_process_files, reindex, settings, user_id)
             try:
                 while next(_iter):
                     pass
@@ -1304,7 +1266,7 @@ class FileIndexPage(BasePage):
             for p in exclude_patterns:
                 files = [f for f in files if not fnmatch.fnmatch(name=f, pat=p)]
 
-        yield from self.index_fn(files, [], reindex, settings, user_id)
+        yield from self.index_fn(files, reindex, settings, user_id)
 
     def format_size_human_readable(self, num: float | str, suffix="B"):
         try:
@@ -1580,14 +1542,6 @@ class FileIndexPage(BasePage):
                     f"Maximum number of files ({max_number_of_files}) will be exceeded"
                 )
 
-        return errors
-
-    def validate_urls(self, urls: list[str]):
-        """Validate if the urls are valid"""
-        errors = []
-        for url in urls:
-            if not url.startswith("http") and not url.startswith("https"):
-                errors.append(f"Invalid url `{url}`")
         return errors
 
 

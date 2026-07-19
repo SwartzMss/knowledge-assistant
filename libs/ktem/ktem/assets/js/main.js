@@ -60,34 +60,12 @@ function run() {
 
   chat_column.insertBefore(chat_expand_button, chat_column.firstChild);
 
-  // move use mind-map checkbox
-  let mindmap_checkbox = document.getElementById("use-mindmap-checkbox");
   let citation_dropdown = document.getElementById("citation-dropdown");
   let chat_setting_panel = document.getElementById("chat-settings-expand");
   chat_setting_panel.insertBefore(
-    mindmap_checkbox,
+    citation_dropdown,
     chat_setting_panel.childNodes[2]
   );
-  chat_setting_panel.insertBefore(citation_dropdown, mindmap_checkbox);
-
-  // move share conv checkbox
-  let report_div = document.querySelector(
-    "#report-accordion > div:nth-child(3) > div:nth-child(1)"
-  );
-  let share_conv_checkbox = document.getElementById("is-public-checkbox");
-  if (share_conv_checkbox) {
-    report_div.insertBefore(share_conv_checkbox, report_div.querySelector("button"));
-  }
-
-  // create slider toggle
-  const is_public_checkbox = document.getElementById("suggest-chat-checkbox");
-  const label_element = is_public_checkbox.getElementsByTagName("label")[0];
-  const checkbox_span = is_public_checkbox.getElementsByTagName("span")[0];
-  new_div = document.createElement("div");
-
-  label_element.classList.add("switch");
-  is_public_checkbox.appendChild(checkbox_span);
-  label_element.appendChild(new_div);
 
   // clpse
   globalThis.clpseFn = (id) => {
@@ -99,18 +77,6 @@ function run() {
     } else {
       content.style.display = "none";
     }
-  };
-
-  // store info in local storage
-  globalThis.setStorage = (key, value) => {
-    localStorage.setItem(key, value);
-  };
-  globalThis.getStorage = (key, value) => {
-    item = localStorage.getItem(key);
-    return item ? item : value;
-  };
-  globalThis.removeFromStorage = (key) => {
-    localStorage.removeItem(key);
   };
 
   // Function to scroll to given citation with ID

@@ -7,15 +7,6 @@ from ktem.db.models import Settings, User, engine
 from sqlmodel import Session, select
 
 
-signout_js = """
-function(u, c, pw, pwc) {
-    removeFromStorage('username');
-    removeFromStorage('password');
-    return [u, c, pw, pwc];
-}
-"""
-
-
 gr_cls_single_value = {
     "text": gr.Textbox,
     "number": gr.Number,
@@ -216,7 +207,6 @@ class SettingsPage(BasePage):
                     self.password_change_confirm,
                 ],
                 show_progress="hidden",
-                js=signout_js,
             ).then(
                 self.load_setting,
                 inputs=self._user_id,
