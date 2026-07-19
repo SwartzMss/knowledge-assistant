@@ -5,6 +5,13 @@ from ktem.app import BasePage
 from ktem.db.models import User, engine
 from sqlmodel import Session, select
 
+clear_legacy_credentials_js = """
+function() {
+    localStorage.removeItem('username');
+    localStorage.removeItem('password');
+}
+"""
+
 
 class LoginPage(BasePage):
     public_events = ["onSignIn"]
@@ -15,9 +22,12 @@ class LoginPage(BasePage):
 
     def on_building_ui(self):
         gr.Markdown(f"# Welcome to {self._app.app_name}!")
-        self.usn = gr.Textbox(label="Username", visible=False)
-        self.pwd = gr.Textbox(label="Password", type="password", visible=False)
-        self.btn_login = gr.Button("Login", visible=False)
+        self.usn = gr.Textbox(label="Username")
+        self.pwd = gr.Textbox(label="Password", type="password")
+        self.btn_login = gr.Button("Login")
+
+    def _on_app_created(self):
+        self._app.app.load(fn=None, js=clear_legacy_credentials_js)
 
     def on_register_events(self):
         onSignIn = gr.on(
