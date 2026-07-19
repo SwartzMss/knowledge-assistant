@@ -1,4 +1,5 @@
 @ECHO off
+@REM Modified by SwartzMss in 2026 for the Knowledge Assistant distribution.
 
 :: Main script execution
 CD /D "%~dp0\.."
@@ -62,9 +63,9 @@ IF EXIST "pyproject.toml" (
 ) ELSE (
     ECHO Installing version: %app_version%
     @REM Work around for versioning control
-    python -m pip install git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"#subdirectory=libs/kotaemon
-    python -m pip install git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"#subdirectory=libs/ktem
-    python -m pip install --no-deps git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"
+    python -m pip install git+https://github.com/SwartzMss/knowledge-assistant.git@"%app_version%"#subdirectory=libs/kotaemon
+    python -m pip install git+https://github.com/SwartzMss/knowledge-assistant.git@"%app_version%"#subdirectory=libs/ktem
+    python -m pip install --no-deps git+https://github.com/SwartzMss/knowledge-assistant.git@"%app_version%"
 ) || (
     ECHO. && ECHO Update failed. You may need to run the update again.
     CALL :deactivate_environment

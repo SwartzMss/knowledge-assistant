@@ -17,7 +17,7 @@ tag_filter = "v?\\d+(\\.\\d+)*.*"
 [project]
 name = "knowledge-assistant"
 dynamic = ["version"]
-requires-python = ">= 3.10"
+requires-python = ">=3.10.14"
 description = "A self-hosted knowledge assistant for working with documents."
 dependencies = [
     "kotaemon[all]",

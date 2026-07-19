@@ -1,4 +1,5 @@
 @ECHO off
+@REM Modified by SwartzMss in 2026 for the Knowledge Assistant distribution.
 
 :: Main script execution
 CD /D "%~dp0\.."
@@ -7,7 +8,7 @@ SET /p app_version=<"%CD%\VERSION" || SET app_version=latest
 SET install_dir=%CD%\install_dir
 SET conda_root=%install_dir%\conda
 SET env_dir=%install_dir%\env
-SET python_version=3.10
+SET python_version=3.10.14
 SET miniconda_download_url=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
 
 SET git_install_dir=%install_dir%\Git
@@ -47,7 +48,7 @@ IF ERRORLEVEL 1 GOTO :end
 CALL :activate_environment
 IF ERRORLEVEL 1 GOTO :end
 
-CALL :print_highlight "Installing Kotaemon"
+CALL :print_highlight "Installing Knowledge Assistant"
 CALL :install_dependencies
 IF ERRORLEVEL 1 GOTO :end
 
@@ -59,7 +60,7 @@ CALL :print_highlight "Downloading and extracting PDF.js"
 CALL :download_and_extract_pdf_js
 IF ERRORLEVEL 1 GOTO :end
 
-CALL :print_highlight "Launching Kotaemon in your browser, please wait..."
+CALL :print_highlight "Launching Knowledge Assistant in your browser, please wait..."
 CALL :launch_ui
 
 CALL :deactivate_environment
@@ -212,11 +213,11 @@ IF %ERRORLEVEL% == 0  (
 
         python -m pip install --no-deps -e .
     ) ELSE (
-        ECHO Installing Kotaemon %app_version%
+        ECHO Installing Knowledge Assistant %app_version%
         @REM Work around for versioning control
-        python -m pip install git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"#subdirectory=libs/kotaemon
-        python -m pip install git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"#subdirectory=libs/ktem
-        python -m pip install --no-deps git+https://github.com/Cinnamon/kotaemon.git@"%app_version%"
+        python -m pip install git+https://github.com/SwartzMss/knowledge-assistant.git@"%app_version%"#subdirectory=libs/kotaemon
+        python -m pip install git+https://github.com/SwartzMss/knowledge-assistant.git@"%app_version%"#subdirectory=libs/ktem
+        python -m pip install --no-deps git+https://github.com/SwartzMss/knowledge-assistant.git@"%app_version%"
     )
 
     ( CALL pip list | findstr /C:"kotaemon" >NUL 2>&1 ) || (

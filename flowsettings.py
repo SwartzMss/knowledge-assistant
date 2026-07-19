@@ -143,10 +143,12 @@ if config("AZURE_OPENAI_API_KEY", default="") and config(
             "default": False,
         }
 
-OPENAI_DEFAULT = "<YOUR_OPENAI_KEY>"
-OPENAI_API_KEY = config("OPENAI_API_KEY", default=OPENAI_DEFAULT)
-GOOGLE_API_KEY = config("GOOGLE_API_KEY", default="your-key")
-IS_OPENAI_DEFAULT = len(OPENAI_API_KEY) > 0 and OPENAI_API_KEY != OPENAI_DEFAULT
+OPENAI_API_KEY = config("OPENAI_API_KEY", default="")
+GOOGLE_API_KEY = config("GOOGLE_API_KEY", default="")
+ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+GROQ_API_KEY = config("GROQ_API_KEY", default="")
+COHERE_API_KEY = config("COHERE_API_KEY", default="")
+MISTRAL_API_KEY = config("MISTRAL_API_KEY", default="")
 
 if OPENAI_API_KEY:
     KH_LLMS["openai"] = {
@@ -156,23 +158,23 @@ if OPENAI_API_KEY:
             "base_url": config("OPENAI_API_BASE", default="")
             or "https://api.openai.com/v1",
             "api_key": OPENAI_API_KEY,
-            "model": config("OPENAI_CHAT_MODEL", default="gpt-4o-mini"),
+            "model": config("OPENAI_CHAT_MODEL", default="") or "gpt-4o-mini",
             "timeout": 20,
         },
-        "default": IS_OPENAI_DEFAULT,
+        "default": True,
     }
     KH_EMBEDDINGS["openai"] = {
         "spec": {
             "__type__": "kotaemon.embeddings.OpenAIEmbeddings",
-            "base_url": config("OPENAI_API_BASE", default="https://api.openai.com/v1"),
+            "base_url": config("OPENAI_API_BASE", default="")
+            or "https://api.openai.com/v1",
             "api_key": OPENAI_API_KEY,
-            "model": config(
-                "OPENAI_EMBEDDINGS_MODEL", default="text-embedding-3-large"
-            ),
+            "model": config("OPENAI_EMBEDDINGS_MODEL", default="")
+            or "text-embedding-3-large",
             "timeout": 10,
             "context_length": 8191,
         },
-        "default": IS_OPENAI_DEFAULT,
+        "default": True,
     }
 
 VOYAGE_API_KEY = config("VOYAGE_API_KEY", default="")
@@ -218,7 +220,7 @@ if config("LOCAL_MODEL", default=""):
         "spec": {
             "__type__": "kotaemon.embeddings.OpenAIEmbeddings",
             "base_url": KH_OLLAMA_URL,
-            "model": config("LOCAL_MODEL_EMBEDDINGS", default="nomic-embed-text"),
+            "model": config("LOCAL_MODEL_EMBEDDINGS", default="") or "nomic-embed-text",
             "api_key": "ollama",
         },
         "default": False,
@@ -231,76 +233,91 @@ if config("LOCAL_MODEL", default=""):
         "default": False,
     }
 
-# additional LLM configurations
-KH_LLMS["claude"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.chats.LCAnthropicChat",
-        "model_name": "claude-3-5-sonnet-20240620",
-        "api_key": "your-key",
-    },
-    "default": False,
-}
-KH_LLMS["google"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.chats.LCGeminiChat",
-        "model_name": "gemini-1.5-flash",
-        "api_key": GOOGLE_API_KEY,
-    },
-    "default": not IS_OPENAI_DEFAULT,
-}
-KH_LLMS["groq"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.ChatOpenAI",
-        "base_url": "https://api.groq.com/openai/v1",
-        "model": "llama-3.1-8b-instant",
-        "api_key": "your-key",
-    },
-    "default": False,
-}
-KH_LLMS["cohere"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.chats.LCCohereChat",
-        "model_name": "command-r-plus-08-2024",
-        "api_key": config("COHERE_API_KEY", default="your-key"),
-    },
-    "default": False,
-}
-KH_LLMS["mistral"] = {
-    "spec": {
-        "__type__": "kotaemon.llms.ChatOpenAI",
-        "base_url": "https://api.mistral.ai/v1",
-        "model": "ministral-8b-latest",
-        "api_key": config("MISTRAL_API_KEY", default="your-key"),
-    },
-    "default": False,
-}
+# additional provider configurations
+if ANTHROPIC_API_KEY:
+    KH_LLMS["claude"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.chats.LCAnthropicChat",
+            "model_name": "claude-3-5-sonnet-20240620",
+            "api_key": ANTHROPIC_API_KEY,
+        },
+        "default": False,
+    }
 
-# additional embeddings configurations
-KH_EMBEDDINGS["cohere"] = {
-    "spec": {
-        "__type__": "kotaemon.embeddings.LCCohereEmbeddings",
-        "model": "embed-multilingual-v3.0",
-        "cohere_api_key": config("COHERE_API_KEY", default="your-key"),
-        "user_agent": "default",
-    },
-    "default": False,
-}
-KH_EMBEDDINGS["google"] = {
-    "spec": {
-        "__type__": "kotaemon.embeddings.LCGoogleEmbeddings",
-        "model": "models/text-embedding-004",
-        "google_api_key": GOOGLE_API_KEY,
-    },
-    "default": not IS_OPENAI_DEFAULT,
-}
-KH_EMBEDDINGS["mistral"] = {
-    "spec": {
-        "__type__": "kotaemon.embeddings.LCMistralEmbeddings",
-        "model": "mistral-embed",
-        "api_key": config("MISTRAL_API_KEY", default="your-key"),
-    },
-    "default": False,
-}
+if GOOGLE_API_KEY:
+    KH_LLMS["google"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.chats.LCGeminiChat",
+            "model_name": "gemini-1.5-flash",
+            "api_key": GOOGLE_API_KEY,
+        },
+        "default": False,
+    }
+    KH_EMBEDDINGS["google"] = {
+        "spec": {
+            "__type__": "kotaemon.embeddings.LCGoogleEmbeddings",
+            "model": "models/text-embedding-004",
+            "google_api_key": GOOGLE_API_KEY,
+        },
+        "default": False,
+    }
+
+if GROQ_API_KEY:
+    KH_LLMS["groq"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.ChatOpenAI",
+            "base_url": "https://api.groq.com/openai/v1",
+            "model": "llama-3.1-8b-instant",
+            "api_key": GROQ_API_KEY,
+        },
+        "default": False,
+    }
+
+if COHERE_API_KEY:
+    KH_LLMS["cohere"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.chats.LCCohereChat",
+            "model_name": "command-r-plus-08-2024",
+            "api_key": COHERE_API_KEY,
+        },
+        "default": False,
+    }
+    KH_EMBEDDINGS["cohere"] = {
+        "spec": {
+            "__type__": "kotaemon.embeddings.LCCohereEmbeddings",
+            "model": "embed-multilingual-v3.0",
+            "cohere_api_key": COHERE_API_KEY,
+            "user_agent": "default",
+        },
+        "default": False,
+    }
+    KH_RERANKINGS["cohere"] = {
+        "spec": {
+            "__type__": "kotaemon.rerankings.CohereReranking",
+            "model_name": "rerank-v4.0-fast",
+            "cohere_api_key": COHERE_API_KEY,
+        },
+        "default": True,
+    }
+
+if MISTRAL_API_KEY:
+    KH_LLMS["mistral"] = {
+        "spec": {
+            "__type__": "kotaemon.llms.ChatOpenAI",
+            "base_url": "https://api.mistral.ai/v1",
+            "model": "ministral-8b-latest",
+            "api_key": MISTRAL_API_KEY,
+        },
+        "default": False,
+    }
+    KH_EMBEDDINGS["mistral"] = {
+        "spec": {
+            "__type__": "kotaemon.embeddings.LCMistralEmbeddings",
+            "model": "mistral-embed",
+            "api_key": MISTRAL_API_KEY,
+        },
+        "default": False,
+    }
 # KH_EMBEDDINGS["huggingface"] = {
 #     "spec": {
 #         "__type__": "kotaemon.embeddings.LCHuggingFaceEmbeddings",
@@ -309,15 +326,16 @@ KH_EMBEDDINGS["mistral"] = {
 #     "default": False,
 # }
 
-# default reranking models
-KH_RERANKINGS["cohere"] = {
-    "spec": {
-        "__type__": "kotaemon.rerankings.CohereReranking",
-        "model_name": "rerank-v4.0-fast",
-        "cohere_api_key": config("COHERE_API_KEY", default=""),
-    },
-    "default": True,
-}
+
+def set_first_default(options: dict[str, dict]) -> None:
+    """Select the first configured provider when no explicit default exists."""
+    if options and not any(item.get("default", False) for item in options.values()):
+        next(iter(options.values()))["default"] = True
+
+
+set_first_default(KH_LLMS)
+set_first_default(KH_EMBEDDINGS)
+set_first_default(KH_RERANKINGS)
 
 KH_REASONINGS = [
     "ktem.reasoning.simple.FullQAPipeline",

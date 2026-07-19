@@ -1,4 +1,5 @@
 #!/bin/bash
+# Modified by SwartzMss in 2026 for the Knowledge Assistant distribution.
 
 # functions for better code organization
 function check_path_for_spaces() {
@@ -45,9 +46,9 @@ function update_latest() {
     else
         echo "Installing version: $app_version"
         # Work around for versioning control
-        python -m pip install "git+https://github.com/Cinnamon/kotaemon.git@$app_version#subdirectory=libs/kotaemon"
-        python -m pip install "git+https://github.com/Cinnamon/kotaemon.git@$app_version#subdirectory=libs/ktem"
-        python -m pip install --no-deps git+https://github.com/Cinnamon/kotaemon.git@$app_version
+        python -m pip install "git+https://github.com/SwartzMss/knowledge-assistant.git@$app_version#subdirectory=libs/kotaemon"
+        python -m pip install "git+https://github.com/SwartzMss/knowledge-assistant.git@$app_version#subdirectory=libs/ktem"
+        python -m pip install --no-deps git+https://github.com/SwartzMss/knowledge-assistant.git@$app_version
         if [ $? -ne 0 ]; then
             echo
             echo "Update failed. You may need to run the update again."

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Modified by SwartzMss in 2026 for the Knowledge Assistant distribution.
 
 # functions for better code organization
 function check_path_for_spaces() {
@@ -110,11 +111,11 @@ function install_dependencies() {
 
             python -m pip install --no-deps -e .
         else
-            echo "Installing Kotaemon $app_version"
+            echo "Installing Knowledge Assistant $app_version"
             # Work around for versioning control
-            python -m pip install "git+https://github.com/Cinnamon/kotaemon.git@$app_version#subdirectory=libs/kotaemon"
-            python -m pip install "git+https://github.com/Cinnamon/kotaemon.git@$app_version#subdirectory=libs/ktem"
-            python -m pip install --no-deps "git+https://github.com/Cinnamon/kotaemon.git@$app_version"
+            python -m pip install "git+https://github.com/SwartzMss/knowledge-assistant.git@$app_version#subdirectory=libs/kotaemon"
+            python -m pip install "git+https://github.com/SwartzMss/knowledge-assistant.git@$app_version#subdirectory=libs/ktem"
+            python -m pip install --no-deps "git+https://github.com/SwartzMss/knowledge-assistant.git@$app_version"
         fi
 
         if ! pip list 2>/dev/null | grep -q "kotaemon"; then
@@ -192,7 +193,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")" && cd ..
 install_dir="$(pwd)/install_dir"
 conda_root="${install_dir}/conda"
 env_dir="${install_dir}/env"
-python_version="3.10"
+python_version="3.10.14"
 
 pdf_js_version="4.0.379"
 pdf_js_dist_name="pdfjs-${pdf_js_version}-dist"
@@ -217,7 +218,7 @@ download_and_unzip $pdf_js_dist_url $target_pdf_js_dir
 print_highlight "Setting up a local model"
 setup_local_model
 
-print_highlight "Launching Kotaemon in your browser, please wait..."
+print_highlight "Launching Knowledge Assistant in your browser, please wait..."
 launch_ui $target_pdf_js_dir
 
 deactivate_conda_env

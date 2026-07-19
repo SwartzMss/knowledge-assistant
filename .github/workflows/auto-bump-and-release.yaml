@@ -1,9 +1,7 @@
-name: Auto Bump and Release
+name: Manual Bump and Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   auto-bump-and-release:
@@ -30,15 +28,9 @@ jobs:
         run: |
           echo Create release folder
           mkdir knowledge-assistant
+          git archive HEAD | tar -x -C knowledge-assistant
           echo ${{ steps.update-version.outputs.new_tag }} > knowledge-assistant/VERSION
-          cp LICENSE.txt knowledge-assistant/
-          cp NOTICE knowledge-assistant/
-          cp flowsettings.py knowledge-assistant/
-          cp app.py knowledge-assistant/
           cp .env.example knowledge-assistant/.env
-          cp -r scripts knowledge-assistant/
-          mkdir -p knowledge-assistant/libs/ktem/ktem/
-          cp -r libs/ktem/ktem/assets knowledge-assistant/libs/ktem/ktem/
 
           tree knowledge-assistant
           zip -r knowledge-assistant.zip knowledge-assistant

@@ -1,6 +1,5 @@
 # Modified by SwartzMss in 2026 for Knowledge Assistant branding.
 
-from importlib.metadata import version
 from pathlib import Path
 
 import gradio as gr
@@ -99,9 +98,10 @@ class HelpPage:
         if self.app_version:
             # try retrieve from cache
             changelogs = ""
+            cache_file = self.changelogs_cache_dir / f"{self.app_version}.md"
 
-            if (self.changelogs_cache_dir / f"{version}.md").exists():
-                with open(self.changelogs_cache_dir / f"{version}.md", "r") as fi:
+            if cache_file.exists():
+                with cache_file.open("r", encoding="utf-8") as fi:
                     changelogs = fi.read()
             else:
                 release_url_base = "https://api.github.com/repos/SwartzMss/knowledge-assistant/releases"
@@ -112,9 +112,7 @@ class HelpPage:
                 # cache the changelogs
                 if not self.changelogs_cache_dir.exists():
                     self.changelogs_cache_dir.mkdir(parents=True, exist_ok=True)
-                with open(
-                    self.changelogs_cache_dir / f"{self.app_version}.md", "w"
-                ) as fi:
+                with cache_file.open("w", encoding="utf-8") as fi:
                     fi.write(changelogs)
 
             if changelogs:
