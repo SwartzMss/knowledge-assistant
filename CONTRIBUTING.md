@@ -8,15 +8,10 @@ Welcome 👋 to the Kotaemon project! We're thrilled that you're interested in c
 
 ### Table of Contents
 
-1. [📖 Code of Conduct](#code-of-conduct)
-2. [🔁 Contributing via Pull Requests](#contributing-via-pull-requests)
-3. [📥 Opening an Issue](#-opening-an-issue)
-4. [📝 Commit Messages](#-commit-messages)
-5. [🧾 License](#-license)
-
-## 📖 Code of Conduct
-
-Please review our [code of conduct](./CODE_OF_CONDUCT.md), which is in effect at all times. We expect everyone who contributes to this project to honor it.
+1. [🔁 Contributing via Pull Requests](#contributing-via-pull-requests)
+2. [📥 Opening an Issue](#-opening-an-issue)
+3. [📝 Commit Messages](#-commit-messages)
+4. [🧾 License](#-license)
 
 ## 🔁 Contributing via Pull Requests
 
