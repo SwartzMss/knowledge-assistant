@@ -1,126 +1,101 @@
-# Implementation roadmap
+# 实施路线图
 
-## Recommended sequence
+路线按降低风险且保持现有产品可用的顺序排列。时间是单名熟悉 Python/RAG 的开发者的粗略估算，应在第一阶段结束后重新校准。
 
-The roadmap is ordered to reduce risk while keeping the current product usable. Time ranges are rough engineering estimates for one experienced developer and should be recalibrated after the first milestone.
+## 阶段 0：基线与安全（2～4 天）
 
-## Phase 0 — baseline and safety (2–4 days)
+交付内容：
 
-Deliverables:
+- 明确正式支持的文件、Store、Provider、操作系统和 Python 版本；
+- 增加确定性的“上传 → 入库 → 检索 → 流式回答 → 引用”集成测试；
+- 增加私有知识库和会话的越权测试；
+- 非开发环境拒绝默认管理员凭证；
+- 明确并限制 Gradio 监听地址与 Share 模式；
+- 保存当前数据 Schema Fixture，作为未来迁移基线。
 
-- Record the supported product matrix: file types, stores, providers, OS/Python versions.
-- Add a deterministic upload → index → retrieve → stream answer → citation integration test.
-- Add negative authorization tests for private knowledge bases and conversations.
-- Reject default admin credentials outside explicit development mode.
-- Document/guard local-only binding and Gradio share mode.
-- Capture a fixture copy of the current data schema for future migration tests.
+完成标准：核心 RAG 行为无需外网即可验证；破坏性重构能在 CI 被发现；生产阻断级默认值不能静默上线。
 
-Exit criteria:
+## 阶段 1：类型化启动与应用服务（1～2 周）
 
-- Critical RAG behavior can be verified without external network calls.
-- A breaking refactor fails CI at the application boundary.
-- Known production-blocking defaults cannot silently ship.
+交付内容：
 
-## Phase 1 — typed bootstrap and application services (1–2 weeks)
+- 引入统一 `AppConfig`，集中解析环境变量和默认值；
+- 将目录创建、Provider 构造与纯配置解析分离；
+- 启动时校验模型、Embedding、Store 和索引兼容性；
+- 使用现有实现建立 `KnowledgeBaseService`、`IngestionService`、`QueryService`、`ConversationService`；
+- 将权限检查收口到服务/策略层；
+- Gradio 回调不再直接查询 SQL 或构造 Provider/Pipeline；
+- 建立领域错误与用户安全错误映射。
 
-Deliverables:
+完成标准：无需构造 Gradio UI 即可测试用例；UI 只负责渲染与事件适配；无效配置在启动时给出可操作错误。
 
-- Introduce a typed `AppConfig` that resolves environment and defaults once.
-- Separate directory creation/provider construction from configuration parsing.
-- Add startup validation for model, embedding, store, and index compatibility.
-- Create thin `KnowledgeBaseService`, `IngestionService`, `QueryService`, and `ConversationService` wrappers over existing implementations.
-- Move authorization checks into service/policy methods.
-- Make Gradio callbacks call services rather than SQL/pipelines directly.
-- Add structured domain errors and user-safe error mapping.
+## 阶段 2：持久化生命周期与恢复（1～2 周）
 
-Exit criteria:
+交付内容：
 
-- Application use cases run in tests without constructing Gradio UI.
-- UI modules contain rendering/event adaptation, not storage queries or provider construction.
-- Invalid configuration fails at startup with actionable messages.
+- 启用 Alembic 并建立初始版本；
+- 新数据改用含 `index_id` 的稳定表，提供旧动态表兼容/迁移；
+- 索引 Manifest 记录模型、维度与切片配置；
+- 增加入库任务状态、确定性 ID、重试与取消；
+- 提供对账、导出、备份、恢复和完整性检查命令；
+- 增加故障注入、升级和恢复测试。
 
-## Phase 2 — persistence lifecycle and recovery (1–2 weeks)
+完成标准：任意阶段中断后均可重试或自动修复；上一版本可自动升级/恢复；删除覆盖全部物理副本并写审计记录。
 
-Deliverables:
+## 阶段 3：可观测性与运维就绪（3～5 天）
 
-- Enable Alembic and create an initial stamped schema.
-- Replace new dynamic per-index tables with normalized tables using `index_id`; provide compatibility/migration code for existing data.
-- Add index manifests with embedding dimension/model and chunking configuration.
-- Implement durable ingestion job states, deterministic chunk/vector IDs, retries, and cancellation.
-- Add reconciliation, export, backup, restore, and integrity-check commands.
-- Add failure-injection and upgrade/restore tests.
+交付内容：
 
-Exit criteria:
+- 带 Request/Conversation/Job/Source ID 的结构化日志；
+- 入库、检索、模型、队列、Token 和错误指标；
+- Liveness、Readiness 与依赖健康检查；
+- Timeout、Retry、Concurrency、Upload 和 Token Budget 策略；
+- Provider 故障、索引损坏、磁盘满、备份恢复和凭证轮换 Runbook。
 
-- Killing ingestion at any stage yields a retryable or automatically repairable state.
-- Upgrade and restore from the previous supported schema are automated and tested.
-- Delete semantics cover every physical copy and produce an audit record.
+完成标准：无需复现即可定位失败请求或任务阶段；健康信号能区分进程存活与依赖可用。
 
-## Phase 3 — observability and operational readiness (3–5 days)
+## 阶段 4：依赖与能力治理（3～7 天）
 
-Deliverables:
+交付内容：
 
-- Structured logging with request/conversation/job/source identifiers.
-- Metrics for ingestion stages, retrieval, model calls, queues, tokens, and errors.
-- Liveness/readiness and dependency health endpoints or commands.
-- Timeout, retry, concurrency, upload, and token-budget policies.
-- Operator runbooks for provider failure, corrupt index, full disk, backup/restore, and credential rotation.
+- 将模块分类为正式支持、实验、兼容保留或删除；
+- 把可选 Provider、OCR、Agent、Web Search、替代 Store、MCP 依赖移入 Extras；
+- 从核心包移除非必要 Gradio/FastAPI 依赖；
+- 为正式 Store/Provider 增加契约测试；
+- 发布兼容性矩阵与弃用策略。
 
-Exit criteria:
+完成标准：最小安装只包含基线依赖；支持声明与注册配置、CI 覆盖一致。
 
-- An operator can identify a failed request/job and its stage without reproducing it.
-- Health signals distinguish process health from dependency readiness.
+## 阶段 5：外部接口（可选，1～2 周）
 
-## Phase 4 — dependency and capability cleanup (3–7 days)
+前置条件：阶段 0～3 完成。
 
-Deliverables:
+- 基于应用服务提供带认证和配额的版本化 HTTP API；
+- 按需要提供复用同一查询/来源契约的 MCP 适配器；
+- 定义 OpenAPI、流式协议、错误模型和幂等规则；
+- 增加 API 契约、权限、限流和客户端兼容测试。
 
-- Classify retained modules as supported/experimental/compatibility/remove.
-- Move optional providers, OCR, agents, web search, alternate stores, and MCP dependencies into extras.
-- Remove Gradio/FastAPI dependencies from core packages where not intrinsically required.
-- Add adapter contract tests for every supported provider/store.
-- Publish a compatibility matrix and deprecation policy.
+完成标准：Gradio 与外部客户端遵循相同领域和权限行为；没有传输层绕过授权、审计和预算。
 
-Exit criteria:
+## 阶段 6：Worker/服务拆分（仅在有量化需求时）
 
-- A minimal installation contains only baseline runtime dependencies.
-- Supported capability claims match registered configuration and CI coverage.
+优先拆入库 Worker。拆查询服务前必须先定义 SLO 和容量证据，并补齐任务归属、幂等、Outbox、分布式追踪、部署回滚及数据/Schema 兼容。
 
-## Phase 5 — external interfaces (optional, 1–2 weeks)
+## 首批 Backlog
 
-Prerequisite: phases 0–3 complete.
-
-Deliverables:
-
-- Versioned HTTP API over application services with authentication and quotas.
-- MCP adapter over the same query/source contracts if required.
-- OpenAPI/schema documentation, streaming protocol, error model, idempotency rules.
-- API contract, authorization, rate-limit, and client compatibility tests.
-
-Exit criteria:
-
-- Gradio and external clients produce equivalent policy and domain behavior.
-- No transport bypasses authorization, auditing, budgets, or application services.
-
-## Phase 6 — worker/service split (only with measured need)
-
-Start with ingestion workers. Define SLOs and capacity evidence before splitting query services. Required design items include job ownership, idempotency, outbox/event delivery, distributed tracing, deployment rollback, and data/schema compatibility.
-
-## First backlog
-
-| Order | Work item | Acceptance test |
+| 顺序 | 工作项 | 验收标准 |
 | --- | --- | --- |
-| 1 | Deterministic full RAG integration fixture | One test validates upload, retrieval, streaming answer, citation |
-| 2 | Secure bootstrap credentials | Non-dev startup refuses `admin/admin` |
-| 3 | Typed effective configuration | One validated object; secrets excluded from repr/logs |
-| 4 | `IngestionService` wrapper | UI callback delegates and service is Gradio-free |
-| 5 | `QueryService`/`ConversationService` | Chat path tested without rendering UI |
-| 6 | Central authorization policy | Cross-user reads/downloads/deletes fail in service tests |
-| 7 | Alembic baseline | Empty and existing fixture DBs reach current revision |
-| 8 | Ingestion job table/state machine | Interrupted job can retry without duplicate chunks |
-| 9 | Integrity/reconciliation CLI | Detects and reports injected orphan in each store |
-| 10 | Structured telemetry | One correlation ID links request, retrieval, provider call, response |
+| 1 | 确定性完整 RAG Fixture | 单测试覆盖上传、检索、流式回答和引用 |
+| 2 | 安全初始化凭证 | 非开发环境拒绝 `admin/admin` |
+| 3 | 类型化有效配置 | 只有一个验证后对象；日志不包含秘密 |
+| 4 | `IngestionService` | UI 委托给无 Gradio 依赖的服务 |
+| 5 | `QueryService`/`ConversationService` | 不渲染 UI 即可测试聊天路径 |
+| 6 | 集中权限策略 | 跨用户读取、下载、删除在服务层失败 |
+| 7 | Alembic 基线 | 空库和旧 Fixture 均可升级到当前版本 |
+| 8 | 入库任务状态机 | 中断后重试不产生重复切片 |
+| 9 | 完整性/对账 CLI | 能发现每类存储中注入的孤儿数据 |
+| 10 | 结构化遥测 | 一个关联 ID 串联请求、检索、模型和响应 |
 
-## Definition of done for architecture work
+## 架构工作的完成定义
 
-An architecture change is complete only when code, migration/compatibility handling, automated tests, operational behavior, and developer documentation land together. Diagrams must describe the implemented state; proposals remain explicitly labeled TO-BE until their acceptance criteria pass.
+架构改动只有在代码、迁移/兼容处理、自动化测试、运维行为和开发文档同时完成时才算交付。图表必须描述已实现状态；尚未实现的内容继续明确标记为 TO-BE。

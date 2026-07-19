@@ -1,80 +1,76 @@
-# Quality and risk assessment
+# 质量与风险评估
 
-## Summary
+## 总体判断
 
-The codebase has solid reusable primitives and a reproducible lockfile, but the application is not production-ready. The largest risks are boundary and lifecycle risks rather than the basic RAG algorithm: secrets/authentication defaults, multi-store consistency, UI-to-domain coupling, unversioned schemas, and an oversized inherited dependency/capability surface.
+代码库具备较好的 RAG 基础组件和可复现锁文件，但应用还不适合生产部署。主要风险不在基础 RAG 算法，而在系统边界和生命周期：默认凭证、跨存储一致性、UI 与领域耦合、未版本化 Schema，以及过大的上游依赖与能力面。
 
-Priority definitions:
+- **P0**：任何生产或外网部署前必须解决；
+- **P1**：大规模功能开发或开放 API 前解决；
+- **P2**：在模块化和扩展性治理中完成。
 
-- **P0**: address before any production or externally reachable deployment.
-- **P1**: address before significant feature work or API exposure.
-- **P2**: improve during modularization and scale preparation.
+## 风险清单
 
-## Risk register
-
-| Priority | Finding | Evidence in current code | Consequence | Recommended control |
+| 优先级 | 问题 | 代码事实 | 影响 | 建议措施 |
 | --- | --- | --- | --- | --- |
-| P0 | Default admin credentials | `flowsettings.py` defaults admin username/password to `admin` | Immediate account takeover if exposed | Require first-run secret/bootstrap; reject defaults outside dev |
-| P0 | Gradio share/external exposure lacks a hardened deployment boundary | `KH_GRADIO_SHARE`; direct Gradio launch | Accidental public access, weak rate/audit controls | Default local-only; deploy behind authenticated reverse proxy/API |
-| P0 | Multi-store writes are non-transactional | Index pipeline writes SQLite, FS, LanceDB, Chroma | Orphans and inconsistent retrieval after failures | Durable ingestion jobs, idempotency, compensation/reconciliation |
-| P0 | No supported migration path | `create_all` at import; Alembic disabled | Unsafe upgrades and irreversible schema drift | Enable/version migrations and test upgrades/restores |
-| P1 | UI owns application orchestration | Chat/file pages construct pipelines and query persistence | Hard to test, reuse, expose as API, or enforce policies | Introduce application services/use cases |
-| P1 | Authorization rules are distributed | User/private filtering lives in UI/index/retriever paths | Cross-user data exposure when adding new entry points | Central policy layer plus negative authorization tests |
-| P1 | Provider/config errors are late and dynamic | Dotted imports and `__type__` dictionaries | Runtime failures after startup/user action | Typed config validation and startup capability checks |
-| P1 | Broad dependency surface | Core package installs many providers/loaders/frameworks | Slow builds, vulnerability surface, version conflicts | Split baseline and extras; remove unsupported runtime deps |
-| P1 | Weak application E2E coverage | CI covers compile/import, core unit tests, minimal ktem tests | Regressions in upload-chat-citation path | Deterministic fake-provider integration and browser smoke tests |
-| P1 | No structured observability | Prints and streamed debug documents | Incidents cannot be correlated or measured | Structured logs, metrics, tracing IDs, health/readiness |
-| P2 | Dynamic per-index SQL tables | `FileIndex._setup_resources()` | Migration and operations complexity | Stable normalized schema with `index_id` |
-| P2 | Large UI module | file UI exceeds 1,500 lines; chat page mixes state/data/render | High change risk and ownership ambiguity | Split controllers/presenters from services and view components |
-| P2 | Sync/thread hybrid execution | synchronous generators plus relevance thread | Cancellation/resource-leak complexity | Define job/execution model; bound pools and cancellation |
-| P2 | Retained unsupported code lacks classification | agents/OCR/web/MCP/alternative stores remain | Misleading support claims and maintenance load | Capability inventory and explicit lifecycle labels |
+| P0 | 默认管理员凭证 | `flowsettings.py` 默认 `admin/admin` | 对外暴露后可直接接管 | 首次启动设置密码；非开发环境拒绝默认值 |
+| P0 | Gradio 对外暴露缺少安全边界 | `KH_GRADIO_SHARE` 直接启动 | 认证、限流、审计不足 | 默认仅本地；生产置于认证网关之后 |
+| P0 | 跨存储写入无事务 | 入库写 SQLite、文件、LanceDB、Chroma | 失败后产生孤儿或不一致数据 | 持久化任务、幂等写入、补偿与对账 |
+| P0 | 无正式迁移路径 | 导入时 `create_all`，Alembic 关闭 | 升级不安全、Schema 漂移 | 启用迁移并测试升级/恢复 |
+| P1 | UI 承担业务编排 | Chat/File 页面直接创建 Pipeline、访问存储 | 难测试、复用和开放 API | 引入应用服务/用例层 |
+| P1 | 权限规则分散 | 用户过滤位于 UI、Index、Retriever | 新入口可能造成越权 | 统一策略层与反向权限测试 |
+| P1 | 动态配置错误发现过晚 | 点分导入与 `__type__` 字典 | 启动后或操作时才失败 | 类型化配置与启动能力校验 |
+| P1 | 依赖面过大 | 核心包安装大量 Provider/Loader | 构建慢、漏洞与冲突面大 | 拆分最小依赖和 Extras |
+| P1 | 应用级 E2E 不足 | CI 以编译、导入和单元测试为主 | 核心用户链路容易回归 | Fake Provider 集成测试与浏览器冒烟测试 |
+| P1 | 缺少结构化观测 | 大量 `print` 与 UI Debug 文档 | 故障无法关联和量化 | 日志、指标、Trace ID、健康检查 |
+| P2 | 每个索引动态建表 | `FileIndex._setup_resources()` | 迁移和运维复杂 | 稳定表结构 + `index_id` |
+| P2 | UI 文件过大 | File UI 超过 1,500 行 | 修改风险和职责不清 | 拆分 View、Controller 与 Service |
+| P2 | 同步与线程混用 | Generator + 相关性评分线程 | 取消和资源释放复杂 | 明确执行模型、线程池与取消语义 |
+| P2 | 保留能力未分类 | Agent/OCR/Web/MCP 等仍在仓库 | 支持边界模糊、维护成本高 | 标记支持/实验/兼容/删除 |
 
-## Test assessment
+## 测试现状
 
-Current strengths:
+当前优势：
 
-- Kotaemon has unit tests across documents, loaders, models, stores, retrieval, reranking, agents, and telemetry.
-- Ktem has minimal login, conversation, baseline, and QA-oriented tests.
-- CI builds docs strictly, compiles the application, verifies imports/package metadata, runs upstream core tests on Python 3.10/3.11, and runs the minimal app suite.
-- `uv.lock` and frozen sync improve reproducibility.
+- Kotaemon 已覆盖文档、Loader、模型、存储、检索、重排、Agent 和遥测等单元测试；
+- Ktem 有登录、会话、最小基线与 QA 测试；
+- CI 严格构建文档、编译应用、验证导入和包元数据，并在 Python 3.10/3.11 运行核心测试；
+- `uv.lock` 与 Frozen Sync 提供依赖可复现性。
 
-Gaps to close:
+需要补齐：
 
-1. A no-network integration test that uploads a fixture, indexes it with a deterministic fake embedding, retrieves it, answers with a fake streaming LLM, and verifies citations.
-2. Failure-injection tests after each persistence stage, followed by retry/reconciliation.
-3. Authorization tests for private/public indices, conversations, groups, downloads, and deletion.
-4. Migration tests from at least the previous released data/schema version.
-5. Browser smoke tests for login, upload, chat, citation navigation, settings, and logout.
-6. Load tests for parallel chat, large uploads, cancellation, and provider timeouts.
-7. Contract tests for each supported model/store adapter.
+1. 无网络集成测试：上传 Fixture、Fake Embedding 入库、检索、Fake Streaming LLM 回答并校验引用；
+2. 每个持久化阶段的故障注入、重试与对账测试；
+3. 私有/公开知识库、会话、分组、下载和删除的权限测试；
+4. 从上一发布版本升级的数据迁移测试；
+5. 登录、上传、聊天、引用跳转、设置、退出的浏览器测试；
+6. 并发聊天、大文件、取消和 Provider 超时的负载测试；
+7. 正式支持的 Store/Provider 契约测试。
 
-Recommended test pyramid:
-
-| Layer | Purpose | CI target |
+| 测试层 | 目的 | 执行策略 |
 | --- | --- | --- |
-| Unit | Components, policies, config, transformations | Every push, fast |
-| Contract | Store/provider adapter behavior | Every PR for baseline adapters |
-| Integration | Application services with local real stores/fake models | Every PR |
-| Browser E2E | Critical user journeys | Every PR or merge queue |
-| Migration/restore | Upgrade and backup safety | Every release |
-| Load/resilience | Capacity and failure behavior | Scheduled/pre-release |
+| 单元测试 | 组件、策略、配置、转换 | 每次 Push，快速 |
+| 契约测试 | Store/Provider 一致行为 | 每个 PR |
+| 集成测试 | 应用服务 + 本地真实 Store + Fake Model | 每个 PR |
+| 浏览器 E2E | 核心用户流程 | PR 或 Merge Queue |
+| 迁移/恢复 | 升级与备份安全 | 每次 Release |
+| 负载/韧性 | 容量与故障行为 | 定时或发布前 |
 
-## Security baseline
+## 安全基线
 
-Before production, implement:
+生产部署前至少完成：
 
-- password hashing verification, bootstrap/admin rotation, session expiration, CSRF and secure-cookie review;
-- upload MIME/content validation, archive limits, path normalization, malware scanning hook, and parser sandbox strategy;
-- per-user/index authorization enforced below the UI layer;
-- model endpoint allowlists or SSRF protections for configurable endpoints;
-- secrets through environment/secret manager only, with log redaction;
-- rate, upload-size, token-budget, and concurrency limits;
-- dependency and container scanning plus a vulnerability response process;
-- audit records for login, source access, upload, delete, settings changes, and admin actions;
-- documented data retention and deletion behavior, including vector/document replicas.
+- 密码哈希验证、首次管理员初始化、Session 过期、CSRF 与 Cookie 安全审查；
+- 上传 MIME/内容校验、压缩包限制、路径规范化、恶意文件扫描接口与 Parser 沙箱策略；
+- 在 UI 下层强制执行用户/知识库权限；
+- 对可配置 Endpoint 增加 Allowlist 或 SSRF 防护；
+- Secret Manager/环境变量管理与日志脱敏；
+- 请求频率、上传大小、Token 预算和并发限制；
+- 依赖/镜像扫描与漏洞响应流程；
+- 登录、读取、上传、删除、设置和管理员操作审计；
+- 数据保留与彻底删除规范，覆盖文档和向量副本。
 
-## Performance and scalability
+## 性能与扩展性
 
-The single-process design is adequate for development and small local installations. Expected pressure points are CPU-heavy parsing, embedding/network concurrency, SQLite write contention, Gradio worker occupancy during long streams, and memory/context growth.
+单进程适合开发和小规模本地部署。主要压力点是文档解析 CPU、Embedding 网络并发、SQLite 写锁、流式回答占用 Gradio Worker，以及上下文内存增长。
 
-Measure before splitting services. Establish metrics for upload bytes, parse/chunk/embed time, chunks per source, retrieval latency/recall proxy, time-to-first-token, total answer latency, token usage, error/retry rate, queue depth, and store sizes. Move ingestion to a worker first when durable background execution is required; move query serving only when independent scaling or isolation is demonstrated.
+拆服务前应先测量：上传字节数、解析/切片/向量化耗时、每来源切片数、检索延迟、首 Token 时间、总回答延迟、Token 使用、错误/重试率、队列深度和存储体积。需要后台持久执行时优先拆入库 Worker；只有出现独立扩缩容或安全隔离需求时才拆查询服务。

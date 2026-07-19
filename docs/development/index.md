@@ -1,66 +1,66 @@
-# Developer guide
+# 开发者指南
 
-## Purpose and review scope
+## 文档目的与考察范围
 
-This guide is an engineering assessment of the repository at the current revision. It is written from the code rather than from an intended product design. The review covers the root application, both workspace packages, configuration, persistence, tests, scripts, and CI. Generated data under `ktem_app_data`, caches, the virtual environment, and vendored browser assets are not treated as source modules.
+本文档基于当前仓库代码，而不是产品设想。考察范围包括根应用、两个工作区包、配置、持久化、测试、脚本与 CI；`ktem_app_data`、缓存、虚拟环境和第三方静态资源不作为业务源码分析。
 
-The repository contains about 224 Python files and 24,000 lines of Python. Most code is inherited from Kotaemon and still exposes a broader capability surface than the product currently registers. Therefore, this documentation distinguishes among:
+仓库约有 224 个 Python 文件、24,000 行 Python 代码。大部分能力继承自 Kotaemon，实际代码面远大于当前产品注册范围。因此本文区分：
 
-- **Registered baseline**: reachable through the current `flowsettings.py` and UI.
-- **Retained capability**: code remains available but is not part of the current product contract.
-- **Target architecture**: recommended direction, not yet implemented.
+- **当前基线**：通过 `flowsettings.py` 和 UI 实际可达的功能；
+- **保留能力**：代码仍存在，但不属于当前产品承诺；
+- **目标架构**：推荐演进方向，尚未实现。
 
-## Executive summary
+## 核心结论
 
-Knowledge Assistant is currently a modular monolith: one Python process owns the Gradio UI, authentication, settings, knowledge-base management, indexing, retrieval, LLM calls, citations, and local persistence.
+Knowledge Assistant 当前是一个模块化单体：单个 Python 进程承担 Gradio UI、登录、设置、知识库管理、入库、检索、LLM 调用、引用生成和本地持久化。
 
 ```mermaid
 flowchart TB
-    Browser["Browser"] --> Gradio["Gradio UI and callbacks"]
-    Gradio --> App["ktem application assembly"]
-    App --> Index["FileIndex and pipelines"]
+    Browser["浏览器"] --> Gradio["Gradio UI 与回调"]
+    Gradio --> App["ktem 应用装配"]
+    App --> Index["FileIndex 与 Pipeline"]
     App --> QA["FullQAPipeline"]
-    Index --> Core["kotaemon components"]
+    Index --> Core["kotaemon 核心组件"]
     QA --> Core
-    Core --> Models["LLM and embedding providers"]
-    Index --> Local["SQLite + files + LanceDB + Chroma"]
+    Core --> Models["LLM 与 Embedding Provider"]
+    Index --> Local["SQLite + 文件 + LanceDB + Chroma"]
 ```
 
-The internal component abstractions are useful, but application boundaries are weak. UI callbacks create and invoke pipelines directly; configuration also performs provider registration and filesystem initialization; persistence is split across four stores without a transaction boundary. The best next step is not an immediate microservice split. First introduce application services and stable ports inside the monolith, protect them with tests, and only then expose HTTP/MCP or move workloads out of process.
+内部组件抽象具有复用价值，但应用边界较弱：UI 回调直接创建并执行 Pipeline；配置文件同时进行 Provider 注册与目录初始化；一次入库跨越四类存储且没有统一事务。下一步不应直接拆微服务，而应先在单体内部引入应用服务与稳定端口，用测试保护后再开放 HTTP/MCP 或拆分进程。
 
-## Reading order
+## 阅读顺序
 
-1. [Current architecture](../architecture/current-architecture.md): deployed shape and supported baseline.
-2. [Codebase map](codebase-map.md): ownership and important source files.
-3. [Runtime flows](runtime-flows.md): startup, ingestion, retrieval, and chat sequences.
-4. [Data and configuration](data-and-configuration.md): stores, tables, settings, and provider wiring.
-5. [Quality and risks](quality-and-risks.md): evidence-based gaps and priorities.
-6. [Target architecture](../architecture/target-architecture.md): recommended boundaries.
-7. [Roadmap](roadmap.md): ordered implementation plan and acceptance criteria.
+1. [当前架构](../architecture/current-architecture.md)
+2. [代码库地图](codebase-map.md)
+3. [运行时流程](runtime-flows.md)
+4. [数据与配置](data-and-configuration.md)
+5. [质量与风险评估](quality-and-risks.md)
+6. [目标架构](../architecture/target-architecture.md)
+7. [实施路线图](roadmap.md)
 
-## Current product contract
+## 当前产品契约
 
-| Concern | Current contract |
+| 关注点 | 当前约定 |
 | --- | --- |
-| Runtime | Python 3.10.14+, one Gradio process |
-| Package management | `uv`, workspace members `libs/kotaemon` and `libs/ktem` |
-| User access | Local username/password; management enabled by default |
-| Knowledge source | One private `FileIndex`, PDF/TXT/Markdown |
-| Retrieval | Vector, text, or hybrid depending on user settings |
-| Reasoning | `ktem.reasoning.simple.FullQAPipeline` |
-| Metadata | SQLite through SQLModel/SQLAlchemy |
-| Original files | Local filesystem |
-| Chunks | LanceDB document store |
-| Embeddings | Chroma vector store |
-| Model providers | Registered from environment variables |
-| Public API | None; browser callbacks call Python objects directly |
+| 运行时 | Python 3.10.14+，单 Gradio 进程 |
+| 包管理 | `uv`，工作区成员为 `libs/kotaemon` 与 `libs/ktem` |
+| 用户访问 | 本地用户名/密码，默认启用用户管理 |
+| 知识来源 | 一个私有 `FileIndex`，支持 PDF/TXT/Markdown |
+| 检索 | 向量、文本或混合检索 |
+| 推理 | `ktem.reasoning.simple.FullQAPipeline` |
+| 元数据 | SQLite + SQLModel/SQLAlchemy |
+| 原始文件 | 本地文件系统 |
+| 切片 | LanceDB 文档存储 |
+| 向量 | Chroma 向量存储 |
+| 模型 | 由环境变量注册 Provider |
+| 公共 API | 无，浏览器回调直接调用 Python 对象 |
 
-## Engineering principles for subsequent work
+## 后续工程原则
 
-- Preserve the existing RAG path behind characterization tests before moving packages.
-- Separate product-supported behavior from inherited but unregistered modules.
-- Make domain/application APIs explicit before adding transport APIs.
-- Treat indexing as a recoverable job with observable stages and cleanup semantics.
-- Version configuration, database schema, and index schema independently.
-- Keep provider-specific SDK objects behind model, embedding, and reranking interfaces.
-- Prefer a modular monolith until scale or isolation requirements justify deployment separation.
+- 移动代码前先用特征测试保护现有 RAG 链路；
+- 区分正式支持与仅为上游兼容而保留的模块；
+- 在增加传输协议前明确领域与应用 API；
+- 将入库视为可恢复、可观测的任务；
+- 分别版本化配置、数据库 Schema 和索引 Schema；
+- 将 Provider SDK 隔离在模型、Embedding、Reranker 适配器后；
+- 在扩缩容或隔离需求被证明前，坚持模块化单体。
