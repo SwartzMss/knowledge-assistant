@@ -63,8 +63,9 @@ flowchart LR
 ```
 
 Files are validated against the supported extensions before the indexing
-pipeline parses, chunks, embeds, and persists them. `IndexManager` retains the
-extension boundary for future index and backend adapters.
+pipeline parses, chunks, embeds, and persists them. `IndexManager` and the
+pipelines provide existing extension points that may later be wrapped by
+backend adapters.
 
 ## Question-answering flow
 
@@ -78,8 +79,11 @@ flowchart LR
     C --> X["Citations and evidence"]
 ```
 
-The supported model path is OpenAI-compatible APIs or Ollama. Model and
-embedding managers remain the configuration boundary used by the pipelines.
+The intended minimal model path is OpenAI-compatible APIs or Ollama.
+Additional provider registrations remain temporarily available for upstream
+compatibility, but they are not part of the minimal product contract and will
+be reviewed during dependency and provider splitting. Model and embedding
+managers remain the configuration boundary used by the pipelines.
 
 ## Persistence
 
@@ -107,7 +111,10 @@ rewrite of the core RAG path:
 - indexing and retrieval pipelines
 - model and embedding managers
 - Pluggy extension registration
-- future backend-adapter boundaries
+- existing index and pipeline extension points that may later be wrapped by
+  backend adapters
+
+No external RAG backend adapter contract exists in the current baseline.
 
 The next architectural pressure point is the direct UI-to-pipeline coupling.
 Directory moves, package renames, external RAG backends, REST APIs, and an MCP
