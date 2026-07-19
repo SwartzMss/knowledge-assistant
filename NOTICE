@@ -5,5 +5,8 @@ This product is a modified fork of Kotaemon and includes software developed
 by the Kotaemon Team and its contributors:
 https://github.com/Cinnamon/kotaemon
 
-The original work and this distribution are provided under the Apache
-License, Version 2.0. This project is not an official Kotaemon release.
+Portions of this product are derived from Kotaemon and are licensed under
+the Apache License, Version 2.0. See LICENSE.txt for the full license text.
+
+This project is independently maintained and is not an official Kotaemon
+release.
