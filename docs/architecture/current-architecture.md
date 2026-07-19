@@ -1,4 +1,4 @@
-# Current architecture
+# Current architecture (AS-IS)
 
 This page describes the minimal Knowledge Assistant baseline as it exists today.
 It is not a proposal for a future service-oriented architecture.
@@ -119,3 +119,6 @@ No external RAG backend adapter contract exists in the current baseline.
 The next architectural pressure point is the direct UI-to-pipeline coupling.
 Directory moves, package renames, external RAG backends, REST APIs, and an MCP
 server should be addressed only after this baseline remains protected by tests.
+
+For implementation-level details, continue with the [developer guide](../development/index.md),
+[runtime flows](../development/runtime-flows.md), and [data model](../development/data-and-configuration.md).

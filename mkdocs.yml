@@ -6,7 +6,16 @@ edit_uri: edit/main/docs/
 nav:
   - Home: index.md
   - About: about.md
-  - Architecture: architecture/current-architecture.md
+  - Architecture:
+      - Current architecture: architecture/current-architecture.md
+      - Target architecture: architecture/target-architecture.md
+  - Developer guide:
+      - Overview: development/index.md
+      - Codebase map: development/codebase-map.md
+      - Runtime flows: development/runtime-flows.md
+      - Data and configuration: development/data-and-configuration.md
+      - Quality and risks: development/quality-and-risks.md
+      - Roadmap: development/roadmap.md
 
 theme:
   name: material

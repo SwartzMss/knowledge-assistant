@@ -8,6 +8,17 @@ Knowledge Assistant is a self-hosted application for working with documents.
 Usage and development documentation will be rebuilt as the new architecture
 stabilizes.
 
+## Developer documentation
+
+- [Current architecture](architecture/current-architecture.md)
+- [Target architecture](architecture/target-architecture.md)
+- [Developer guide](development/index.md)
+- [Codebase map](development/codebase-map.md)
+- [Runtime flows](development/runtime-flows.md)
+- [Data and configuration](development/data-and-configuration.md)
+- [Quality and risks](development/quality-and-risks.md)
+- [Implementation roadmap](development/roadmap.md)
+
 ## Project links
 
 - [Source code](https://github.com/SwartzMss/knowledge-assistant)
