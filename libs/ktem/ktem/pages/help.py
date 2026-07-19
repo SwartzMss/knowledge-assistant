@@ -28,13 +28,3 @@ class HelpPage:
                 if self.app_version:
                     about_md = f"Version: {self.app_version}\n\n{about_md}"
                 gr.Markdown(about_md)
-
-        user_guide_md_dir = self.doc_dir / "usage.md"
-        if user_guide_md_dir.exists():
-            with (self.doc_dir / "usage.md").open(encoding="utf-8") as fi:
-                user_guide_md = fi.read()
-        else:
-            user_guide_md = ""
-        if user_guide_md:
-            with gr.Accordion("User Guide", open=True):
-                gr.Markdown(user_guide_md)

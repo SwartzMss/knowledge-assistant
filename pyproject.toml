@@ -49,6 +49,10 @@ dev = [
     "pytest-mock",
     "sphinx"
 ]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+]
 
 [project.urls]
 Homepage = "https://github.com/SwartzMss/knowledge-assistant"
