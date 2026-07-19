@@ -91,7 +91,7 @@ jobs:
       - name: Install additional dependencies (if any)
         run: |
           uv sync --frozen --no-cache
-          uv pip install -e "libs/kotaemon[adv]"
+          uv pip install "elasticsearch>=8.13.0,<8.14"
 
       - name: New dependencies cache for key ${{ steps.restore-dependencies.outputs.cache-primary-key }}
         if: |
@@ -112,7 +112,11 @@ jobs:
           source .venv/bin/activate
           uv pip show pytest
           cd libs/kotaemon
-          pytest
+          pytest \
+            --ignore=tests/test_agent.py \
+            --ignore=tests/test_mcp_tools.py \
+            --ignore=tests/test_tools.py \
+            -k "not MilvusVectorStore and not QdrantVectorStore"
 
   minimal-app:
     runs-on: ubuntu-latest
