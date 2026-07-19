@@ -36,12 +36,6 @@ pip install kotaemon@git+ssh://git@github.com/Cinnamon/kotaemon.git
   pip install -e ".[dev]"
   ```
 
-- Pre-commit
-
-  ```shell
-  pre-commit install
-  ```
-
 - Test
 
   ```shell

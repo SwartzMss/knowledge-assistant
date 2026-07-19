@@ -45,7 +45,6 @@ dev = [
     "coverage",
     "flake8",
     "ipython",
-    "pre-commit",
     "pytest",
     "pytest-mock",
     "sphinx"

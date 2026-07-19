@@ -29,6 +29,7 @@ jobs:
         run: |
           uv run python -m compileall \
             flowsettings.py \
+            libs/kotaemon/kotaemon \
             libs/ktem/ktem
 
       - name: Import application
