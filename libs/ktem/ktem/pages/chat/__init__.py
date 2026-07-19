@@ -1,8 +1,6 @@
 # Modified by SwartzMss in 2026: handle disabled chat suggestions without errors.
 
 import asyncio
-import json
-import re
 from copy import deepcopy
 from typing import Optional
 
@@ -20,7 +18,6 @@ from theflow.utils.modules import import_dotted_string
 
 from kotaemon.base import Document
 from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
-from kotaemon.indices.qa.utils import strip_think_tag
 
 from ...utils import (
     SUPPORTED_LANGUAGE_MAP,
@@ -31,7 +28,6 @@ from ...utils import (
 )
 from ...utils.commands import WEB_SEARCH_COMMAND
 from .chat_panel import ChatPanel
-from .chat_suggestion import ChatSuggestion
 from .common import STATE
 from .control import ConversationControl
 from .report import ReportIssue
@@ -205,9 +201,6 @@ class ChatPage(BasePage):
         self._preview_links = gr.State(value=None)
         self._reasoning_type = gr.State(value=None)
         self._conversation_renamed = gr.State(value=False)
-        self._use_suggestion = gr.State(
-            value=getattr(flowsettings, "KH_FEATURE_CHAT_SUGGESTION", False)
-        )
         self._info_panel_expanded = gr.State(value=True)
         self._command_state = gr.State(value=None)
         self._user_api_key = gr.Text(value="", visible=False)
@@ -265,8 +258,6 @@ class ChatPage(BasePage):
                                 index.default_selector = index_ui.default()
                                 self._indices_input.append(gr_index)
                         setattr(self, f"_index_{index.id}", index_ui)
-
-                self.chat_suggestion = ChatSuggestion(self._app)
 
                 if len(self._app.index_manager.indices) > 0:
                     quick_upload_label = (
@@ -393,9 +384,6 @@ class ChatPage(BasePage):
                     self.modal = gr.HTML("<div id='pdf-modal'></div>")
                     self.plot_panel = gr.Plot(visible=False)
                     self.info_panel = gr.HTML(elem_id="html-info-panel")
-
-        self.followup_questions = self.chat_suggestion.examples
-        self.followup_questions_ui = self.chat_suggestion.accordion
 
     def _json_to_plot(self, json_dict: dict | None):
         if json_dict:
@@ -528,7 +516,6 @@ class ChatPage(BasePage):
                     self.chat_control.conversation,
                     self.chat_control.conversation_rn,
                     self.chat_panel.chatbot,
-                    self.followup_questions,
                     self.info_panel,
                     self.state_plot_panel,
                     self.state_retrieval_history,
@@ -563,7 +550,6 @@ class ChatPage(BasePage):
                     self.chat_control.conversation,
                     self.chat_control.conversation_rn,
                     self.chat_panel.chatbot,
-                    self.followup_questions,
                     self.info_panel,
                     self.state_plot_panel,
                     self.state_retrieval_history,
@@ -607,7 +593,6 @@ class ChatPage(BasePage):
                     self.chat_control.conversation,
                     self.chat_control.conversation_rn,
                     self.chat_panel.chatbot,
-                    self.followup_questions,
                     self.info_panel,
                     self.state_plot_panel,
                     self.state_retrieval_history,
@@ -666,7 +651,6 @@ class ChatPage(BasePage):
                     self.chat_control.conversation,
                     self.chat_control.conversation_rn,
                     self.chat_panel.chatbot,
-                    self.followup_questions,
                     self.info_panel,
                     self.state_plot_panel,
                     self.state_retrieval_history,
@@ -777,44 +761,9 @@ class ChatPage(BasePage):
             show_progress="hidden",
         )
 
-        def toggle_chat_suggestion(current_state, settings, language, chat_history):
-            suggestion_ui, suggestions = self.suggest_chat_conv(
-                settings,
-                language,
-                chat_history,
-                current_state,
-            )
-            return current_state, suggestion_ui, suggestions
-
-        self.chat_control.cb_suggest_chat.change(
-            fn=toggle_chat_suggestion,
-            inputs=[
-                self.chat_control.cb_suggest_chat,
-                self._app.settings_state,
-                self.language,
-                self.chat_panel.chatbot,
-            ],
-            outputs=[
-                self._use_suggestion,
-                self.followup_questions_ui,
-                self.followup_questions,
-            ],
-            show_progress="hidden",
-        )
         self.chat_control.conversation_id.change(
             lambda: gr.update(visible=False),
             outputs=self.plot_panel,
-        )
-
-        self.followup_questions.select(
-            self.chat_suggestion.select_example,
-            outputs=[self.chat_panel.text_input],
-            show_progress="hidden",
-        ).then(
-            fn=None,
-            inputs=None,
-            outputs=None,
-            js=chat_input_focus_js,
         )
 
         if KH_DEMO_MODE:
@@ -1008,7 +957,6 @@ class ChatPage(BasePage):
                         self.chat_control.conversation,
                         self.chat_control.conversation_rn,
                         self.chat_panel.chatbot,
-                        self.followup_questions,
                         self.info_panel,
                         self.state_plot_panel,
                         self.state_retrieval_history,
@@ -1019,28 +967,6 @@ class ChatPage(BasePage):
                     + self._indices_input,
                     "show_progress": "hidden",
                 },
-            )
-
-    def _on_app_created(self):
-        if KH_DEMO_MODE:
-            self._app.app.load(
-                fn=lambda x: x,
-                inputs=[self._user_api_key],
-                outputs=[self._user_api_key],
-                js=fetch_api_key_js,
-            ).then(
-                fn=self.chat_control.toggle_demo_login_visibility,
-                inputs=[self._user_api_key],
-                outputs=[
-                    self.chat_control.cb_suggest_chat,
-                    self.chat_control.btn_new,
-                    self.chat_control.btn_demo_logout,
-                    self.chat_control.btn_demo_login,
-                ],
-            ).then(
-                fn=None,
-                inputs=None,
-                js=chat_input_focus_js,
             )
 
     def persist_data_source(
@@ -1363,53 +1289,3 @@ class ChatPage(BasePage):
                 plot,
                 chat_state,
             )
-
-    def check_and_suggest_name_conv(self, chat_history):
-        suggest_pipeline = SuggestConvNamePipeline()
-        new_name = gr.update()
-        renamed = False
-
-        # check if this is a newly created conversation
-        if len(chat_history) == 1:
-            suggested_name = suggest_pipeline(chat_history).text
-            suggested_name = strip_think_tag(suggested_name)
-            suggested_name = suggested_name.replace('"', "").replace("'", "")[:40]
-            new_name = gr.update(value=suggested_name)
-            renamed = True
-
-        return new_name, renamed
-
-    def suggest_chat_conv(
-        self,
-        settings,
-        session_language,
-        chat_history,
-        use_suggestion,
-    ):
-        target_language = (
-            session_language
-            if session_language not in (DEFAULT_SETTING, None)
-            else settings["reasoning.lang"]
-        )
-        if use_suggestion:
-            suggest_pipeline = SuggestFollowupQuesPipeline()
-            suggest_pipeline.lang = SUPPORTED_LANGUAGE_MAP.get(
-                target_language, "English"
-            )
-            suggested_questions = [[each] for each in ChatSuggestion.CHAT_SAMPLES]
-
-            if len(chat_history) >= 1:
-                suggested_resp = suggest_pipeline(chat_history).text
-                if ques_res := re.search(
-                    r"\[(.*?)\]", re.sub("\n", "", suggested_resp)
-                ):
-                    ques_res_str = ques_res.group()
-                    try:
-                        suggested_questions = json.loads(ques_res_str)
-                        suggested_questions = [[x] for x in suggested_questions]
-                    except Exception:
-                        pass
-
-            return gr.update(visible=True), suggested_questions
-
-        return gr.update(visible=False), gr.update()

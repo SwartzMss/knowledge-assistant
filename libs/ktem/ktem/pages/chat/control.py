@@ -12,7 +12,6 @@ from sqlmodel import Session, or_, select
 import flowsettings
 
 from ...utils.conversation import sync_retrieval_n_message
-from .chat_suggestion import ChatSuggestion
 from .common import STATE
 
 logger = logging.getLogger(__name__)
@@ -104,15 +103,6 @@ class ConversationControl(BasePage):
         )
 
         with gr.Row() as self._new_delete:
-            self.cb_suggest_chat = gr.Checkbox(
-                value=False,
-                label="Suggest chat",
-                min_width=10,
-                scale=6,
-                elem_id="suggest-chat-checkbox",
-                container=False,
-                visible=not KH_DEMO_MODE,
-            )
             self.cb_is_public = gr.Checkbox(
                 value=False,
                 label="Share this conversation",
@@ -302,8 +292,6 @@ class ConversationControl(BasePage):
 
     def select_conv(self, conversation_id, user_id):
         """Select the conversation"""
-        default_chat_suggestions = [[each] for each in ChatSuggestion.CHAT_SAMPLES]
-
         with Session(engine) as session:
             statement = select(Conversation).where(Conversation.id == conversation_id)
             try:
@@ -320,9 +308,6 @@ class ConversationControl(BasePage):
                     selected = {}
 
                 chats = result.data_source.get("messages", [])
-                chat_suggestions = result.data_source.get(
-                    "chat_suggestions", default_chat_suggestions
-                )
 
                 retrieval_history: list[str] = result.data_source.get(
                     "retrieval_messages", []
@@ -347,7 +332,6 @@ class ConversationControl(BasePage):
                 name = ""
                 selected = {}
                 chats = []
-                chat_suggestions = default_chat_suggestions
                 retrieval_history = []
                 plot_history = []
                 info_panel = ""
@@ -370,7 +354,6 @@ class ConversationControl(BasePage):
             id_,
             name,
             chats,
-            chat_suggestions,
             info_panel,
             plot_data,
             retrieval_history,
@@ -412,36 +395,6 @@ class ConversationControl(BasePage):
             conversation_id,
             gr.update(visible=False),
         )
-
-    def persist_chat_suggestions(
-        self, conversation_id, new_suggestions, is_updated, user_id
-    ):
-        """Update the conversation's chat suggestions"""
-        if not is_updated:
-            return
-
-        if user_id is None:
-            gr.Warning("Please sign in first (Settings → User Settings)")
-            return gr.update(), ""
-
-        if not conversation_id:
-            gr.Warning("No conversation selected.")
-            return gr.update(), ""
-
-        with Session(engine) as session:
-            statement = select(Conversation).where(Conversation.id == conversation_id)
-            result = session.exec(statement).one()
-
-            data_source = deepcopy(result.data_source)
-            data_source["chat_suggestions"] = [
-                [x] for x in new_suggestions.iloc[:, 0].tolist()
-            ]
-
-            result.data_source = data_source
-            session.add(result)
-            session.commit()
-
-        gr.Info("Chat suggestions updated.")
 
     def _on_app_created(self):
         """Reload the conversation once the app is created"""
