@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.6.10"
+          python-version: "3.10.14"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Compile application
+        run: |
+          uv run python -m compileall \
+            flowsettings.py \
+            libs/kotaemon/kotaemon \
+            libs/ktem/ktem
+
+      - name: Import application
+        run: uv run python -c "from ktem.main import App; print('import ok')"
+
+      - name: Check package metadata
+        run: |
+          uv run python -c "from importlib.metadata import version; print(version('knowledge-assistant'))"

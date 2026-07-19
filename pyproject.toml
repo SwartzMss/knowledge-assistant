@@ -1,3 +1,5 @@
+# Modified by SwartzMss in 2026 for the Knowledge Assistant distribution.
+
 [build-system]
 requires = ["setuptools >= 61.0", "wheel", "setuptools-git-versioning>=2.0,<3"]
 build-backend = "setuptools.build_meta"
@@ -13,19 +15,16 @@ dirty_template = "{tag}"
 tag_filter = "v?\\d+(\\.\\d+)*.*"
 
 [project]
-name = "kotaemon-app"
+name = "knowledge-assistant"
 dynamic = ["version"]
-requires-python = ">= 3.10"
-description = "Kotaemon App"
+requires-python = ">=3.10.14"
+description = "A self-hosted knowledge assistant for working with documents."
 dependencies = [
     "kotaemon[all]",
     "ktem"
 ]
 authors = [
-    { name = "@trducng", email = "john@cinnamon.is" },
-    { name = "@lone17", email = "ian@cinnamon.is" },
-    { name = "@taprosoft", email = "tadashi@cinnamon.is" },
-    { name = "@cin-albert", email = "albert@cinnamon.is" },
+    { name = "SwartzMss" },
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -46,16 +45,15 @@ dev = [
     "coverage",
     "flake8",
     "ipython",
-    "pre-commit",
     "pytest",
     "pytest-mock",
     "sphinx"
 ]
 
 [project.urls]
-Homepage = "https://cinnamon.github.io/kotaemon/"
-Repository = "https://github.com/Cinnamon/kotaemon/"
-Documentation = "https://cinnamon.github.io/kotaemon/"
+Homepage = "https://github.com/SwartzMss/knowledge-assistant"
+Repository = "https://github.com/SwartzMss/knowledge-assistant"
+Issues = "https://github.com/SwartzMss/knowledge-assistant/issues"
 
 [tool.codespell]
 skip = "*.js,*.css,*.map"

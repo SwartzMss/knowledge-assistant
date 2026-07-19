@@ -1,3 +1,5 @@
+# Modified by SwartzMss in 2026 for Knowledge Assistant branding.
+
 import gradio as gr
 from ktem.app import BasePage
 from theflow.settings import settings as flowsettings
@@ -12,7 +14,7 @@ if not KH_DEMO_MODE:
     )
 else:
     PLACEHOLDER_TEXT = (
-        "Welcome to Kotaemon Demo. "
+        "Welcome to the Knowledge Assistant demo. "
         "Start by browsing preloaded conversations to get onboard.\n"
         "Check out Hint section for more tips."
     )

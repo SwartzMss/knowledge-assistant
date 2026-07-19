@@ -1,3 +1,5 @@
+# Modified by SwartzMss in 2026: handle disabled chat suggestions without errors.
+
 import asyncio
 import json
 import re
@@ -825,24 +827,29 @@ class ChatPage(BasePage):
             show_progress="hidden",
         )
 
-        def toggle_chat_suggestion(current_state):
-            return current_state, gr.update(visible=current_state)
-
-        def raise_error_on_state(state):
-            if not state:
-                raise ValueError("Chat suggestion disabled")
+        def toggle_chat_suggestion(current_state, settings, language, chat_history):
+            suggestion_ui, suggestions = self.suggest_chat_conv(
+                settings,
+                language,
+                chat_history,
+                current_state,
+            )
+            return current_state, suggestion_ui, suggestions
 
         self.chat_control.cb_suggest_chat.change(
             fn=toggle_chat_suggestion,
-            inputs=[self.chat_control.cb_suggest_chat],
-            outputs=[self._use_suggestion, self.followup_questions_ui],
+            inputs=[
+                self.chat_control.cb_suggest_chat,
+                self._app.settings_state,
+                self.language,
+                self.chat_panel.chatbot,
+            ],
+            outputs=[
+                self._use_suggestion,
+                self.followup_questions_ui,
+                self.followup_questions,
+            ],
             show_progress="hidden",
-        ).then(
-            fn=raise_error_on_state,
-            inputs=[self._use_suggestion],
-            show_progress="hidden",
-        ).success(
-            **onSuggestChatEvent
         )
         self.chat_control.conversation_id.change(
             lambda: gr.update(visible=False),
@@ -1237,9 +1244,9 @@ class ChatPage(BasePage):
             settings["reasoning.options.simple.create_mindmap"] = session_use_mindmap
 
         if session_use_citation not in (DEFAULT_SETTING, None):
-            settings[
-                "reasoning.options.simple.highlight_citation"
-            ] = session_use_citation
+            settings["reasoning.options.simple.highlight_citation"] = (
+                session_use_citation
+            )
 
         if session_language not in (DEFAULT_SETTING, None):
             settings["reasoning.lang"] = session_language

@@ -30,12 +30,6 @@
     conda activate install_dir/env
     ```
 
-- Pre-commit
-
-  ```shell
-  pre-commit install
-  ```
-
 - Test
 
   ```shell

@@ -1,3 +1,5 @@
+# Modified by SwartzMss in 2026 for Knowledge Assistant branding.
+
 import os
 from pathlib import Path
 from typing import Optional
@@ -17,7 +19,7 @@ BASE_PATH = os.environ.get("GR_FILE_ROOT_PATH", "")
 
 
 class BaseApp:
-    """The main app of Kotaemon
+    """The main Knowledge Assistant application.
 
     The main application contains app-level information:
         - setting state
@@ -39,7 +41,7 @@ class BaseApp:
 
     def __init__(self):
         self.dev_mode = getattr(settings, "KH_MODE", "") == "dev"
-        self.app_name = getattr(settings, "KH_APP_NAME", "Kotaemon")
+        self.app_name = getattr(settings, "KH_APP_NAME", "Knowledge Assistant")
         self.app_version = getattr(settings, "KH_APP_VERSION", "")
         self.f_user_management = getattr(settings, "KH_FEATURE_USER_MANAGEMENT", False)
         self._theme = KotaemonTheme()
@@ -127,10 +129,10 @@ class BaseApp:
             if "reasoning" in functionality:
                 for rid, rdec in functionality["reasoning"].items():
                     unique_rid = f"{extension_declaration['id']}/{rid}"
-                    self.default_settings.reasoning.options[
-                        unique_rid
-                    ] = BaseSettingGroup(
-                        settings=rdec["settings"],
+                    self.default_settings.reasoning.options[unique_rid] = (
+                        BaseSettingGroup(
+                            settings=rdec["settings"],
+                        )
                     )
 
     def declare_event(self, name: str):
@@ -251,7 +253,7 @@ class BaseApp:
 
 
 class BasePage:
-    """The logic of the Kotaemon app"""
+    """Shared page logic for the Knowledge Assistant application."""
 
     public_events: list[str] = []
 

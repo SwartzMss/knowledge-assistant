@@ -1,3 +1,5 @@
+# Modified by SwartzMss in 2026 for Knowledge Assistant branding.
+
 import gradio as gr
 from decouple import config
 from ktem.app import BaseApp
@@ -26,7 +28,7 @@ def toggle_first_setup_visibility():
 
 
 class App(BaseApp):
-    """The main app of Kotaemon
+    """The main Knowledge Assistant application.
 
     The main application contains app-level information:
         - setting state

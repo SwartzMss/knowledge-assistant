@@ -267,13 +267,14 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             },
             "use_reranking": {
                 "name": "Use reranking",
-                "value": True,
+                "value": bool(reranking_models_manager.options()),
                 "choices": [True, False],
                 "component": "checkbox",
             },
             "use_llm_reranking": {
                 "name": "Use LLM relevant scoring",
-                "value": not config("USE_LOW_LLM_REQUESTS", default=False, cast=bool),
+                "value": bool(llms.options())
+                and not config("USE_LOW_LLM_REQUESTS", default=False, cast=bool),
                 "choices": [True, False],
                 "component": "checkbox",
             },
@@ -287,7 +288,17 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             settings: the settings of the app
             kwargs: other arguments
         """
-        use_llm_reranking = user_settings.get("use_llm_reranking", False)
+        use_llm_reranking = user_settings.get("use_llm_reranking", False) and bool(
+            llms.options()
+        )
+        rerankers = []
+        if user_settings.get("use_reranking", False) and bool(
+            reranking_models_manager.options()
+        ):
+            reranking_name = index_settings.get("reranking")
+            if reranking_name not in reranking_models_manager:
+                reranking_name = reranking_models_manager.get_default_name()
+            rerankers = [reranking_models_manager[reranking_name]]
 
         retriever = cls(
             get_extra_table=user_settings["prioritize_table"],
@@ -300,16 +311,8 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             ],
             retrieval_mode=user_settings["retrieval_mode"],
             llm_scorer=(LLMTrulensScoring() if use_llm_reranking else None),
-            rerankers=[
-                reranking_models_manager[
-                    index_settings.get(
-                        "reranking", reranking_models_manager.get_default_name()
-                    )
-                ]
-            ],
+            rerankers=rerankers,
         )
-        if not user_settings["use_reranking"]:
-            retriever.rerankers = []  # type: ignore
 
         for reranker in retriever.rerankers:
             if isinstance(reranker, LLMReranking):
@@ -787,7 +790,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 chunk_size=chunk_size or 1024,
                 chunk_overlap=chunk_overlap or 256,
                 separator="\n\n",
-                backup_separators=["\n", ".", "\u200B"],
+                backup_separators=["\n", ".", "\u200b"],
             ),
             run_embedding_in_thread=self.run_embedding_in_thread,
             Source=self.Source,

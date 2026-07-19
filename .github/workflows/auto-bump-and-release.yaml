@@ -1,9 +1,7 @@
-name: Auto Bump and Release
+name: Manual Bump and Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   auto-bump-and-release:
@@ -29,23 +27,18 @@ jobs:
         if: ${{ steps.update-version.outputs.new_tag != steps.update-version.outputs.old_tag }}
         run: |
           echo Create release folder
-          mkdir kotaemon-app
-          echo ${{ steps.update-version.outputs.new_tag }} > kotaemon-app/VERSION
-          cp LICENSE.txt kotaemon-app/
-          cp flowsettings.py kotaemon-app/
-          cp app.py kotaemon-app/
-          cp .env.example kotaemon-app/.env
-          cp -r scripts kotaemon-app/
-          mkdir -p kotaemon-app/libs/ktem/ktem/
-          cp -r libs/ktem/ktem/assets kotaemon-app/libs/ktem/ktem/
+          mkdir knowledge-assistant
+          git archive HEAD | tar -x -C knowledge-assistant
+          echo ${{ steps.update-version.outputs.new_tag }} > knowledge-assistant/VERSION
+          cp .env.example knowledge-assistant/.env
 
-          tree kotaemon-app
-          zip -r kotaemon-app.zip kotaemon-app
+          tree knowledge-assistant
+          zip -r knowledge-assistant.zip knowledge-assistant
       - name: Release ${{ steps.update-version.outputs.new_tag }}
         if: ${{ steps.update-version.outputs.new_tag != steps.update-version.outputs.old_tag }}
         uses: softprops/action-gh-release@v2
         with:
-          files: kotaemon-app.zip
+          files: knowledge-assistant.zip
           fail_on_unmatched_files: true
           token: ${{ secrets.GITHUB_TOKEN }}
           generate_release_notes: true

@@ -4,8 +4,6 @@
 
 #### NOTE
 
-In the case of using Docker image, please replace `http://localhost` with `http://host.docker.internal` to correctly communicate with service on the host machine. See [more detail](https://stackoverflow.com/questions/31324981/how-to-access-host-port-from-docker-container).
-
 ### Ollama OpenAI compatible server (recommended)
 
 Install [ollama](https://github.com/ollama/ollama) and start the application.

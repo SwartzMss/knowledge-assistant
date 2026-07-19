@@ -38,12 +38,6 @@ pip install -e "libs/kotaemon[dev]"
 
 5. **Make your changes**: Ensure your code follows the project's coding style and passes all test cases.
 
-   - Check the coding style
-
-   ```sh
-   pre-commit run --all-files
-   ```
-
    - Run the tests
 
    ```sh
