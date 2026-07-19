@@ -13,12 +13,6 @@ from ktem.components import reasonings
 from ktem.db.models import Conversation, engine
 from ktem.index.file.ui import File
 from ktem.reasoning.prompt_optimization.mindmap import MINDMAP_HTML_EXPORT_TEMPLATE
-from ktem.reasoning.prompt_optimization.suggest_conversation_name import (
-    SuggestConvNamePipeline,
-)
-from ktem.reasoning.prompt_optimization.suggest_followup_chat import (
-    SuggestFollowupQuesPipeline,
-)
 from plotly.io import from_json
 from sqlmodel import Session, select
 from theflow.settings import settings as flowsettings
@@ -36,18 +30,14 @@ from ...utils import (
     prepare_llm_query,
 )
 from ...utils.commands import WEB_SEARCH_COMMAND
-from ...utils.hf_papers import get_recommended_papers
-from ...utils.rate_limit import check_rate_limit
 from .chat_panel import ChatPanel
 from .chat_suggestion import ChatSuggestion
 from .common import STATE
 from .control import ConversationControl
-from .demo_hint import HintPage
-from .paper_list import PaperListPage
 from .report import ReportIssue
 
-KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
-KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
+KH_DEMO_MODE = False
+KH_SSO_ENABLED = False
 KH_WEB_SEARCH_BACKEND = getattr(flowsettings, "KH_WEB_SEARCH_BACKEND", None)
 WebSearch = None
 if KH_WEB_SEARCH_BACKEND:
@@ -490,47 +480,7 @@ class ChatPage(BasePage):
                 outputs=[self._preview_links],
                 js=pdfview_js,
             )
-            .success(
-                fn=self.check_and_suggest_name_conv,
-                inputs=self.chat_panel.chatbot,
-                outputs=[
-                    self.chat_control.conversation_rn,
-                    self._conversation_renamed,
-                ],
-            )
-            .success(
-                self.chat_control.rename_conv,
-                inputs=[
-                    self.chat_control.conversation_id,
-                    self.chat_control.conversation_rn,
-                    self._conversation_renamed,
-                    self._app.user_id,
-                ],
-                outputs=[
-                    self.chat_control.conversation,
-                    self.chat_control.conversation,
-                    self.chat_control.conversation_rn,
-                ],
-                show_progress="hidden",
-            )
         )
-
-        onSuggestChatEvent = {
-            "fn": self.suggest_chat_conv,
-            "inputs": [
-                self._app.settings_state,
-                self.language,
-                self.chat_panel.chatbot,
-                self._use_suggestion,
-            ],
-            "outputs": [
-                self.followup_questions_ui,
-                self.followup_questions,
-            ],
-            "show_progress": "hidden",
-        }
-        # chat suggestion toggle
-        chat_event = chat_event.success(**onSuggestChatEvent)
 
         # final data persist
         if not KH_DEMO_MODE:

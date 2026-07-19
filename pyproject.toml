@@ -20,7 +20,7 @@ dynamic = ["version"]
 requires-python = ">=3.10.14"
 description = "A self-hosted knowledge assistant for working with documents."
 dependencies = [
-    "kotaemon[all]",
+    "kotaemon",
     "ktem"
 ]
 authors = [

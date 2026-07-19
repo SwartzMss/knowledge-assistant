@@ -1,64 +1,17 @@
 from pathlib import Path
 from typing import Type
 
-from decouple import config
 from llama_index.core.readers.base import BaseReader
 from llama_index.readers.file import PDFReader
-from theflow.settings import settings as flowsettings
 
 from kotaemon.base import BaseComponent, Document, Param
 from kotaemon.indices.extractors import BaseDocParser
 from kotaemon.indices.splitters import BaseSplitter, TokenSplitter
-from kotaemon.loaders import (
-    AdobeReader,
-    AzureAIDocumentIntelligenceLoader,
-    DirectoryReader,
-    DoclingReader,
-    HtmlReader,
-    MathpixPDFReader,
-    MhtmlReader,
-    OCRReader,
-    PaddleOCRVLReader,
-    PandasExcelReader,
-    PDFThumbnailReader,
-    PPStructureV3Reader,
-    TxtReader,
-    UnstructuredReader,
-    WebReader,
-)
-
-web_reader = WebReader()
-unstructured = UnstructuredReader()
-adobe_reader = AdobeReader()
-azure_reader = AzureAIDocumentIntelligenceLoader(
-    endpoint=str(config("AZURE_DI_ENDPOINT", default="")),
-    credential=str(config("AZURE_DI_CREDENTIAL", default="")),
-    cache_dir=getattr(flowsettings, "KH_MARKDOWN_OUTPUT_DIR", None),
-)
-docling_reader = DoclingReader()
-adobe_reader.vlm_endpoint = (
-    azure_reader.vlm_endpoint
-) = docling_reader.vlm_endpoint = getattr(flowsettings, "KH_VLM_ENDPOINT", "")
-
-paddle_device = str(config("PADDLE_DEVICE", default="gpu"))
-paddle_struct_reader = PPStructureV3Reader(device=paddle_device)
-paddle_vl_reader = PaddleOCRVLReader(device=paddle_device)
+from kotaemon.loaders import DirectoryReader, TxtReader
 
 
 KH_DEFAULT_FILE_EXTRACTORS: dict[str, BaseReader] = {
-    ".xlsx": PandasExcelReader(),
-    ".docx": unstructured,
-    ".pptx": unstructured,
-    ".xls": unstructured,
-    ".doc": unstructured,
-    ".html": HtmlReader(),
-    ".mhtml": MhtmlReader(),
-    ".png": unstructured,
-    ".jpeg": unstructured,
-    ".jpg": unstructured,
-    ".tiff": unstructured,
-    ".tif": unstructured,
-    ".pdf": PDFThumbnailReader(),
+    ".pdf": PDFReader(),
     ".txt": TxtReader(),
     ".md": TxtReader(),
 }
@@ -83,7 +36,7 @@ class DocumentIngestor(BaseComponent):
             The default file extractors are stored in `KH_DEFAULT_FILE_EXTRACTORS`
     """
 
-    pdf_mode: str = "normal"  # "normal", "mathpix", "ocr", "multimodal"
+    pdf_mode: str = "normal"
     doc_parsers: list[BaseDocParser] = Param(default_callback=lambda _: [])
     text_splitter: BaseSplitter = TokenSplitter.withx(
         chunk_size=1024,
@@ -101,14 +54,8 @@ class DocumentIngestor(BaseComponent):
         for ext, cls in self.override_file_extractors.items():
             file_extractors[ext] = cls()
 
-        if self.pdf_mode == "normal":
-            file_extractors[".pdf"] = PDFReader()
-        elif self.pdf_mode == "ocr":
-            file_extractors[".pdf"] = OCRReader()
-        elif self.pdf_mode == "multimodal":
-            file_extractors[".pdf"] = AdobeReader()
-        else:
-            file_extractors[".pdf"] = MathpixPDFReader()
+        if self.pdf_mode != "normal":
+            raise ValueError("Only normal PDF text extraction is supported.")
 
         main_reader = DirectoryReader(
             input_files=input_files,

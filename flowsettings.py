@@ -29,8 +29,6 @@ if not KH_APP_VERSION:
         KH_APP_VERSION = "local"
 
 KH_GRADIO_SHARE = config("KH_GRADIO_SHARE", default=False, cast=bool)
-KH_ENABLE_FIRST_SETUP = config("KH_ENABLE_FIRST_SETUP", default=True, cast=bool)
-KH_DEMO_MODE = config("KH_DEMO_MODE", default=False, cast=bool)
 KH_OLLAMA_URL = config("KH_OLLAMA_URL", default="http://localhost:11434/v1/")
 
 # App can be ran from anywhere and it's not trivial to decide where to store app data.
@@ -69,11 +67,7 @@ os.environ["HF_HUB_CACHE"] = str(KH_APP_DATA_DIR / "huggingface")
 KH_DOC_DIR = this_dir / "docs"
 
 KH_MODE = "dev"
-KH_SSO_ENABLED = config("KH_SSO_ENABLED", default=False, cast=bool)
-
-KH_FEATURE_CHAT_SUGGESTION = config(
-    "KH_FEATURE_CHAT_SUGGESTION", default=False, cast=bool
-)
+KH_FEATURE_CHAT_SUGGESTION = False
 KH_FEATURE_USER_MANAGEMENT = config(
     "KH_FEATURE_USER_MANAGEMENT", default=True, cast=bool
 )
@@ -87,10 +81,6 @@ KH_FEATURE_USER_MANAGEMENT_PASSWORD = str(
 KH_ENABLE_ALEMBIC = False
 KH_DATABASE = f"sqlite:///{KH_USER_DATA_DIR / 'sql.db'}"
 KH_FILESTORAGE_PATH = str(KH_USER_DATA_DIR / "files")
-KH_WEB_SEARCH_BACKEND = (
-    "kotaemon.indices.retrievers.tavily_web_search.WebSearch"
-    # "kotaemon.indices.retrievers.jina_web_search.WebSearch"
-)
 
 KH_DOCSTORE = {
     # "__type__": "kotaemon.storages.ElasticsearchDocumentStore",
@@ -337,18 +327,8 @@ set_first_default(KH_LLMS)
 set_first_default(KH_EMBEDDINGS)
 set_first_default(KH_RERANKINGS)
 
-KH_REASONINGS = [
-    "ktem.reasoning.simple.FullQAPipeline",
-    "ktem.reasoning.simple.FullDecomposeQAPipeline",
-    "ktem.reasoning.react.ReactAgentPipeline",
-    "ktem.reasoning.rewoo.RewooAgentPipeline",
-]
-KH_REASONINGS_USE_MULTIMODAL = config("USE_MULTIMODAL", default=False, cast=bool)
-KH_VLM_ENDPOINT = "{0}/openai/deployments/{1}/chat/completions?api-version={2}".format(
-    config("AZURE_OPENAI_ENDPOINT", default=""),
-    config("OPENAI_VISION_DEPLOYMENT_NAME", default="gpt-4o"),
-    config("OPENAI_API_VERSION", default=""),
-)
+KH_REASONINGS = ["ktem.reasoning.simple.FullQAPipeline"]
+KH_REASONINGS_USE_MULTIMODAL = False
 
 
 SETTINGS_APP: dict[str, dict] = {}
@@ -374,52 +354,15 @@ SETTINGS_REASONING = {
     },
 }
 
-USE_GLOBAL_GRAPHRAG = config("USE_GLOBAL_GRAPHRAG", default=True, cast=bool)
-USE_NANO_GRAPHRAG = config("USE_NANO_GRAPHRAG", default=False, cast=bool)
-USE_LIGHTRAG = config("USE_LIGHTRAG", default=True, cast=bool)
-USE_MS_GRAPHRAG = config("USE_MS_GRAPHRAG", default=True, cast=bool)
-
-GRAPHRAG_INDEX_TYPES = []
-
-if USE_MS_GRAPHRAG:
-    GRAPHRAG_INDEX_TYPES.append("ktem.index.file.graph.GraphRAGIndex")
-if USE_NANO_GRAPHRAG:
-    GRAPHRAG_INDEX_TYPES.append("ktem.index.file.graph.NanoGraphRAGIndex")
-if USE_LIGHTRAG:
-    GRAPHRAG_INDEX_TYPES.append("ktem.index.file.graph.LightRAGIndex")
-
-KH_INDEX_TYPES = [
-    "ktem.index.file.FileIndex",
-    *GRAPHRAG_INDEX_TYPES,
-]
-
-GRAPHRAG_INDICES = [
-    {
-        "name": graph_type.split(".")[-1].replace("Index", "")
-        + " Collection",  # get last name
-        "config": {
-            "supported_file_types": (
-                ".png, .jpeg, .jpg, .tiff, .tif, .pdf, .xls, .xlsx, .doc, .docx, "
-                ".pptx, .csv, .html, .mhtml, .txt, .md, .zip"
-            ),
-            "private": True,
-        },
-        "index_type": graph_type,
-    }
-    for graph_type in GRAPHRAG_INDEX_TYPES
-]
+KH_INDEX_TYPES = ["ktem.index.file.FileIndex"]
 
 KH_INDICES = [
     {
         "name": "File Collection",
         "config": {
-            "supported_file_types": (
-                ".png, .jpeg, .jpg, .tiff, .tif, .pdf, .xls, .xlsx, .doc, .docx, "
-                ".pptx, .csv, .html, .mhtml, .txt, .md, .zip"
-            ),
+            "supported_file_types": ".pdf, .txt, .md",
             "private": True,
         },
         "index_type": "ktem.index.file.FileIndex",
     },
-    *GRAPHRAG_INDICES,
 ]

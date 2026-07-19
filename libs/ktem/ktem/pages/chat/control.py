@@ -17,8 +17,8 @@ from .common import STATE
 
 logger = logging.getLogger(__name__)
 
-KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
-KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
+KH_DEMO_MODE = False
+KH_SSO_ENABLED = False
 ASSETS_DIR = "assets/icons"
 if not os.path.isdir(ASSETS_DIR):
     ASSETS_DIR = "libs/ktem/ktem/assets/icons"
@@ -442,29 +442,6 @@ class ConversationControl(BasePage):
             session.commit()
 
         gr.Info("Chat suggestions updated.")
-
-    def toggle_demo_login_visibility(self, user_api_key, request: gr.Request):
-        try:
-            import gradiologin as grlogin
-
-            user = grlogin.get_user(request)
-        except (ImportError, AssertionError):
-            user = None
-
-        if user:  # or user_api_key:
-            return [
-                gr.update(visible=True),
-                gr.update(visible=True),
-                gr.update(visible=True),
-                gr.update(visible=False),
-            ]
-        else:
-            return [
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=True),
-            ]
 
     def _on_app_created(self):
         """Reload the conversation once the app is created"""

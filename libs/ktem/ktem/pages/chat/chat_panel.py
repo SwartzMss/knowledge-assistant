@@ -2,22 +2,10 @@
 
 import gradio as gr
 from ktem.app import BasePage
-from theflow.settings import settings as flowsettings
-
-KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
-
-if not KH_DEMO_MODE:
-    PLACEHOLDER_TEXT = (
-        "This is the beginning of a new conversation.\n"
-        "Start by uploading a file or a web URL. "
-        "Visit Files tab for more options (e.g: GraphRAG)."
-    )
-else:
-    PLACEHOLDER_TEXT = (
-        "Welcome to the Knowledge Assistant demo. "
-        "Start by browsing preloaded conversations to get onboard.\n"
-        "Check out Hint section for more tips."
-    )
+PLACEHOLDER_TEXT = (
+    "This is the beginning of a new conversation.\n"
+    "Upload a PDF, Markdown, or text file to get started."
+)
 
 
 class ChatPanel(BasePage):

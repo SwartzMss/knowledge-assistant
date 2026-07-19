@@ -19,7 +19,6 @@ dynamic = ["version"]
 requires-python = ">=3.10.14"
 description = "RAG-based Question and Answering Application"
 dependencies = [
-    "click>=8.1.7,<9",
     "platformdirs>=4.2.1,<5",
     "pluggy>=1.5.0,<2",
     "python-decouple>=3.8,<4",
@@ -27,11 +26,9 @@ dependencies = [
     "sqlmodel>=0.0.16,<0.1",
     "tiktoken>=0.6.0,<1",
     "gradio>=4.31.0,<5",
-    "gradiologin",
     "python-multipart==0.0.12", # required for gradio, pinning to avoid yanking issues with micropip (fixed in gradio >= 5.4.0)
     "markdown>=3.6,<4",
     "tzlocal>=5.0",
-    "mcp>=1.0.0",
 ]
 authors = [
     { name = "@trducng", email = "john@cinnamon.is" },
