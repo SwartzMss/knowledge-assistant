@@ -50,16 +50,8 @@ dev = [
     "sphinx"
 ]
 docs = [
-    "mdx-truly-sane-lists",
     "mkdocs",
-    "mkdocs-gen-files",
-    "mkdocs-git-revision-date-localized-plugin",
-    "mkdocs-include-markdown-plugin[cache]",
-    "mkdocs-literate-nav",
     "mkdocs-material",
-    "mkdocs-section-index",
-    "mkdocs-video",
-    "mkdocstrings[python]",
 ]
 
 [project.urls]
