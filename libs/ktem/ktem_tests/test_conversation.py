@@ -38,7 +38,7 @@ DEFAULT_QUESTION = "What is the summary of this document?"
             "see https://example.com/doc",
             format_mentions_for_display("see https://example.com/doc"),
             False,
-            "see",
+            "see https://example.com/doc",
         ),
         (
             '@"a.pdf" and @"b.pdf"',

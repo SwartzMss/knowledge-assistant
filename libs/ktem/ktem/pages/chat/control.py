@@ -12,24 +12,13 @@ from sqlmodel import Session, or_, select
 import flowsettings
 
 from ...utils.conversation import sync_retrieval_n_message
-from .chat_suggestion import ChatSuggestion
 from .common import STATE
 
 logger = logging.getLogger(__name__)
 
-KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
-KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
 ASSETS_DIR = "assets/icons"
 if not os.path.isdir(ASSETS_DIR):
     ASSETS_DIR = "libs/ktem/ktem/assets/icons"
-
-
-logout_js = """
-function () {
-    removeFromStorage('google_api_key');
-    window.location.href = "/logout";
-}
-"""
 
 
 def is_conv_name_valid(name):
@@ -48,15 +37,11 @@ class ConversationControl(BasePage):
 
     def __init__(self, app):
         self._app = app
-        self.logout_js = logout_js
         self.on_building_ui()
 
     def on_building_ui(self):
         with gr.Row():
-            title_text = (
-                "Conversations" if not KH_DEMO_MODE else "Knowledge Assistant Demo"
-            )
-            gr.Markdown("## {}".format(title_text))
+            gr.Markdown("## Conversations")
             self.btn_toggle_dark_mode = gr.Button(
                 value="",
                 icon=f"{ASSETS_DIR}/dark_mode.svg",
@@ -104,84 +89,39 @@ class ConversationControl(BasePage):
         )
 
         with gr.Row() as self._new_delete:
-            self.cb_suggest_chat = gr.Checkbox(
-                value=False,
-                label="Suggest chat",
-                min_width=10,
-                scale=6,
-                elem_id="suggest-chat-checkbox",
-                container=False,
-                visible=not KH_DEMO_MODE,
-            )
             self.cb_is_public = gr.Checkbox(
                 value=False,
                 label="Share this conversation",
                 elem_id="is-public-checkbox",
                 container=False,
-                visible=not KH_DEMO_MODE and not KH_SSO_ENABLED,
+                visible=True,
             )
 
-            if not KH_DEMO_MODE:
-                self.btn_conversation_rn = gr.Button(
-                    value="",
-                    icon=f"{ASSETS_DIR}/rename.svg",
-                    min_width=2,
-                    scale=1,
-                    size="sm",
-                    elem_classes=["no-background", "body-text-color"],
-                )
-                self.btn_del = gr.Button(
-                    value="",
-                    icon=f"{ASSETS_DIR}/delete.svg",
-                    min_width=2,
-                    scale=1,
-                    size="sm",
-                    elem_classes=["no-background", "body-text-color"],
-                )
-                self.btn_new = gr.Button(
-                    value="",
-                    icon=f"{ASSETS_DIR}/new.svg",
-                    min_width=2,
-                    scale=1,
-                    size="sm",
-                    elem_classes=["no-background", "body-text-color"],
-                    elem_id="new-conv-button",
-                )
-            else:
-                self.btn_new = gr.Button(
-                    value="New chat",
-                    min_width=120,
-                    size="sm",
-                    scale=1,
-                    variant="primary",
-                    elem_id="new-conv-button",
-                    visible=False,
-                )
-
-        if KH_DEMO_MODE:
-            with gr.Row():
-                self.btn_demo_login = gr.Button(
-                    "Sign-in to create new chat",
-                    min_width=120,
-                    size="sm",
-                    scale=1,
-                    variant="primary",
-                )
-                _js_redirect = """
-                () => {
-                    url = '/login' + window.location.search;
-                    window.open(url, '_blank');
-                }
-                """
-                self.btn_demo_login.click(None, js=_js_redirect)
-
-                self.btn_demo_logout = gr.Button(
-                    "Sign-out",
-                    min_width=120,
-                    size="sm",
-                    scale=1,
-                    visible=False,
-                )
+            self.btn_conversation_rn = gr.Button(
+                value="",
+                icon=f"{ASSETS_DIR}/rename.svg",
+                min_width=2,
+                scale=1,
+                size="sm",
+                elem_classes=["no-background", "body-text-color"],
+            )
+            self.btn_del = gr.Button(
+                value="",
+                icon=f"{ASSETS_DIR}/delete.svg",
+                min_width=2,
+                scale=1,
+                size="sm",
+                elem_classes=["no-background", "body-text-color"],
+            )
+            self.btn_new = gr.Button(
+                value="",
+                icon=f"{ASSETS_DIR}/new.svg",
+                min_width=2,
+                scale=1,
+                size="sm",
+                elem_classes=["no-background", "body-text-color"],
+                elem_id="new-conv-button",
+            )
 
         with gr.Row(visible=False) as self._delete_confirm:
             self.btn_del_conf = gr.Button(
@@ -302,8 +242,6 @@ class ConversationControl(BasePage):
 
     def select_conv(self, conversation_id, user_id):
         """Select the conversation"""
-        default_chat_suggestions = [[each] for each in ChatSuggestion.CHAT_SAMPLES]
-
         with Session(engine) as session:
             statement = select(Conversation).where(Conversation.id == conversation_id)
             try:
@@ -320,9 +258,6 @@ class ConversationControl(BasePage):
                     selected = {}
 
                 chats = result.data_source.get("messages", [])
-                chat_suggestions = result.data_source.get(
-                    "chat_suggestions", default_chat_suggestions
-                )
 
                 retrieval_history: list[str] = result.data_source.get(
                     "retrieval_messages", []
@@ -347,7 +282,6 @@ class ConversationControl(BasePage):
                 name = ""
                 selected = {}
                 chats = []
-                chat_suggestions = default_chat_suggestions
                 retrieval_history = []
                 plot_history = []
                 info_panel = ""
@@ -370,7 +304,6 @@ class ConversationControl(BasePage):
             id_,
             name,
             chats,
-            chat_suggestions,
             info_panel,
             plot_data,
             retrieval_history,
@@ -382,7 +315,7 @@ class ConversationControl(BasePage):
 
     def rename_conv(self, conversation_id, new_name, is_renamed, user_id):
         """Rename the conversation"""
-        if not is_renamed or KH_DEMO_MODE or user_id is None or not conversation_id:
+        if not is_renamed or user_id is None or not conversation_id:
             return (
                 gr.update(),
                 conversation_id,
@@ -412,59 +345,6 @@ class ConversationControl(BasePage):
             conversation_id,
             gr.update(visible=False),
         )
-
-    def persist_chat_suggestions(
-        self, conversation_id, new_suggestions, is_updated, user_id
-    ):
-        """Update the conversation's chat suggestions"""
-        if not is_updated:
-            return
-
-        if user_id is None:
-            gr.Warning("Please sign in first (Settings → User Settings)")
-            return gr.update(), ""
-
-        if not conversation_id:
-            gr.Warning("No conversation selected.")
-            return gr.update(), ""
-
-        with Session(engine) as session:
-            statement = select(Conversation).where(Conversation.id == conversation_id)
-            result = session.exec(statement).one()
-
-            data_source = deepcopy(result.data_source)
-            data_source["chat_suggestions"] = [
-                [x] for x in new_suggestions.iloc[:, 0].tolist()
-            ]
-
-            result.data_source = data_source
-            session.add(result)
-            session.commit()
-
-        gr.Info("Chat suggestions updated.")
-
-    def toggle_demo_login_visibility(self, user_api_key, request: gr.Request):
-        try:
-            import gradiologin as grlogin
-
-            user = grlogin.get_user(request)
-        except (ImportError, AssertionError):
-            user = None
-
-        if user:  # or user_api_key:
-            return [
-                gr.update(visible=True),
-                gr.update(visible=True),
-                gr.update(visible=True),
-                gr.update(visible=False),
-            ]
-        else:
-            return [
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=False),
-                gr.update(visible=True),
-            ]
 
     def _on_app_created(self):
         """Reload the conversation once the app is created"""

@@ -19,12 +19,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from theflow.settings import settings as flowsettings
 
-from ...utils.commands import WEB_SEARCH_COMMAND
-from ...utils.rate_limit import check_rate_limit
-from .utils import download_arxiv_pdf, is_arxiv_url
-
-KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
-KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
 DOWNLOAD_MESSAGE = "Start download"
 MAX_FILENAME_LENGTH = 20
 MAX_FILE_COUNT = 200
@@ -47,10 +41,7 @@ function() {
 
 update_file_list_js = """
 function(file_list) {
-    var values = [{
-        key: "web_search_label",
-        value: "web_search_value",
-    }];
+    var values = [];
 
     for (var i = 0; i < file_list.length; i++) {
         values.push({
@@ -123,11 +114,7 @@ function(file_list) {
     });
     input_box.addEventListener("click", toggleMentionSuggestions);
 }
-""".replace(
-    "web_search_label", WEB_SEARCH_COMMAND
-).replace(
-    "web_search_value", WEB_SEARCH_COMMAND
-)
+"""
 
 
 class File(gr.File):
@@ -199,8 +186,7 @@ class FileIndexPage(BasePage):
         # the constructor
         self.public_events = [f"onFileIndex{index.id}Changed"]
 
-        if not KH_DEMO_MODE:
-            self.on_building_ui()
+        self.on_building_ui()
 
     def upload_instruction(self) -> str:
         msgs = []
@@ -283,7 +269,7 @@ class FileIndexPage(BasePage):
 
         with gr.Accordion("Advance options", open=False):
             with gr.Row():
-                if not KH_SSO_ENABLED:
+                if True:
                     self.download_all_button = gr.DownloadButton(
                         "Download all files",
                     )
@@ -406,9 +392,6 @@ class FileIndexPage(BasePage):
 
     def on_subscribe_public_events(self):
         """Subscribe to the declared public event of the app"""
-        if KH_DEMO_MODE:
-            return
-
         self._app.subscribe_event(
             name=f"onFileIndex{self._index.id}Changed",
             definition={
@@ -700,12 +683,7 @@ class FileIndexPage(BasePage):
                 self.quick_upload_state = gr.State(value=[])
                 print("Setting up quick upload event")
 
-                # override indexing function from chat page
-                self._app.chat_page.first_indexing_url_fn = (
-                    self.index_fn_url_with_default_loaders
-                )
-
-                if not KH_DEMO_MODE:
+                if True:
                     quickUploadedEvent = (
                         self._app.chat_page.quick_file_upload.upload(
                             fn=lambda: gr.update(
@@ -765,72 +743,12 @@ class FileIndexPage(BasePage):
                         )
                     )
 
-                quickURLUploadedEvent = (
-                    self._app.chat_page.quick_urls.submit(
-                        fn=lambda: gr.update(
-                            value="Please wait for the indexing process "
-                            "to complete before adding your question."
-                        ),
-                        outputs=self._app.chat_page.quick_file_upload_status,
-                    )
-                    .then(
-                        fn=self.index_fn_url_with_default_loaders,
-                        inputs=[
-                            self._app.chat_page.quick_urls,
-                            gr.State(value=False),
-                            self._app.settings_state,
-                            self._app.user_id,
-                        ],
-                        outputs=self.quick_upload_state,
-                        concurrency_limit=10,
-                    )
-                    .success(
-                        fn=lambda: [
-                            gr.update(value=None),
-                            gr.update(value="select"),
-                        ],
-                        outputs=[
-                            self._app.chat_page.quick_urls,
-                            self._app.chat_page._indices_input[0],
-                        ],
-                    )
-                )
-                for event in self._app.get_event(f"onFileIndex{self._index.id}Changed"):
-                    quickURLUploadedEvent = quickURLUploadedEvent.then(**event)
-
-                quickURLUploadedEvent = quickURLUploadedEvent.success(
-                    fn=lambda x: x,
-                    inputs=self.quick_upload_state,
-                    outputs=self._app.chat_page._indices_input[1],
-                ).then(
-                    fn=lambda: gr.update(value="Indexing completed."),
-                    outputs=self._app.chat_page.quick_file_upload_status,
-                )
-
-                if not KH_DEMO_MODE:
-                    quickURLUploadedEvent = quickURLUploadedEvent.then(
-                        fn=self.list_file,
-                        inputs=[self._app.user_id, self.filter],
-                        outputs=[self.file_list_state, self.file_list],
-                        concurrency_limit=20,
-                    )
-
-                quickURLUploadedEvent = quickURLUploadedEvent.then(
-                    fn=lambda: True,
-                    inputs=None,
-                    outputs=None,
-                    js=chat_input_focus_js_with_submit,
-                )
-
         except Exception as e:
             print(e)
 
     def on_register_events(self):
         """Register all events to the app"""
         self.on_register_quick_uploads()
-
-        if KH_DEMO_MODE:
-            return
 
         onDeleted = (
             self.delete_button.click(
@@ -897,7 +815,7 @@ class FileIndexPage(BasePage):
             ],
         )
 
-        if not KH_SSO_ENABLED:
+        if True:
             self.download_all_button.click(
                 fn=self.download_all_files,
                 inputs=[],
@@ -951,7 +869,7 @@ class FileIndexPage(BasePage):
             ],
         )
 
-        if not KH_SSO_ENABLED:
+        if True:
             self.download_single_button.click(
                 fn=self.download_single_file,
                 inputs=[self.is_zipped_state, self.selected_file_id],
@@ -1156,9 +1074,6 @@ class FileIndexPage(BasePage):
 
     def _on_app_created(self):
         """Called when the app is created"""
-        if KH_DEMO_MODE:
-            return
-
         self._app.app.load(
             self.list_file,
             inputs=[self._app.user_id, self.filter],
@@ -1317,70 +1232,6 @@ class FileIndexPage(BasePage):
                 returned_ids = e.value
 
         return exist_ids + returned_ids
-
-    def index_fn_url_with_default_loaders(
-        self,
-        urls,
-        reindex: bool,
-        settings,
-        user_id,
-        request: gr.Request,
-    ):
-        if KH_DEMO_MODE:
-            check_rate_limit("file_upload", request)
-
-        returned_ids: list[str] = []
-        settings = deepcopy(settings)
-        settings[f"index.options.{self._index.id}.reader_mode"] = "default"
-        settings[f"index.options.{self._index.id}.quick_index_mode"] = True
-
-        if KH_DEMO_MODE:
-            urls_splitted = urls.split("\n")
-            if not all(is_arxiv_url(url) for url in urls_splitted):
-                raise ValueError("All URLs must be valid arXiv URLs")
-
-            output_files = [
-                download_arxiv_pdf(
-                    url,
-                    output_path=os.environ.get("GRADIO_TEMP_DIR", "/tmp"),
-                )
-                for url in urls_splitted
-            ]
-
-            exist_ids = []
-            to_process_files = []
-            for str_file_path in output_files:
-                file_path = Path(str_file_path)
-                exist_id = (
-                    self._index.get_indexing_pipeline(settings, user_id)
-                    .route(file_path)
-                    .get_id_if_exists(file_path)
-                )
-                if exist_id:
-                    exist_ids.append(exist_id)
-                else:
-                    to_process_files.append(str_file_path)
-
-            returned_ids = []
-            if to_process_files:
-                _iter = self.index_fn(to_process_files, [], reindex, settings, user_id)
-                try:
-                    while next(_iter):
-                        pass
-                except StopIteration as e:
-                    returned_ids = e.value
-
-            returned_ids = exist_ids + returned_ids
-        else:
-            if urls:
-                _iter = self.index_fn([], urls, reindex, settings, user_id)
-                try:
-                    while next(_iter):
-                        pass
-                except StopIteration as e:
-                    returned_ids = e.value
-
-        return returned_ids
 
     def index_files_from_dir(
         self, folder_path, reindex, settings, user_id
@@ -1834,10 +1685,6 @@ class FileSelector(BasePage):
                 statement = statement.where(
                     self._index._resources["Source"].user == user_id
                 )
-
-            if KH_DEMO_MODE:
-                # limit query by MAX_FILE_COUNT
-                statement = statement.limit(MAX_FILE_COUNT)
 
             results = session.execute(statement).all()
             for result in results:
